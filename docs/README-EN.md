@@ -127,6 +127,23 @@ Options:
   --help                          Show this message and exit.
 ```
 
+#### Other Configuration
+
+In this version, the standard ID photo configuration is set in `data/data.ini`, which you can use with the `photo-type` parameter.
+
+You can also modify this configuration file to customize ID photo types. The format is as follows:
+```text
+[XXX]
+打印尺寸 = XXXcm x XXXcm
+电子版尺寸 = XXXpx x XXXpx
+分辨率 = XXXdpi
+```
+The section name and `电子版尺寸 = XXXpx x XXXpx` are required.
+
+The section name represents the `photo-type` parameter.
+
+Currently, the `key` for size only supports the fixed Chinese `电子版尺寸` (Digital Size). This will be improved in future versions.
+
 ## Acknowledgments
 
 The project was created to help my parents complete their work more easily. I would like to thank my parents for their support.
