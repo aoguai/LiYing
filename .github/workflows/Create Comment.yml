@@ -1,0 +1,21 @@
+name: Create Comment
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  create-comment:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'need info'
+    steps:
+      - name: Create comment
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: 'create-comment'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Hello ${{ github.event.issue.user.login }}. It seems that more information is needed for this issue. Please provide additional details.
+
+            你好 ${{ github.event.issue.user.login }}。看起来这个问题需要更多信息。请提供额外的细节。

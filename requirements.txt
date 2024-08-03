@@ -1,0 +1,7 @@
+click
+colorama
+mozjpeg_lossless_optimization
+onnxruntime>=1.14.0
+Pillow
+opencv-python
+numpy
