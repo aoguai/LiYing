@@ -1,18 +1,20 @@
+import locale
+
 import click
 import os
 import sys
 
-# 设置项目根目录
+# Set the project root directory
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')
 TOOL_DIR = os.path.join(PROJECT_ROOT, 'tool')
-# 将数据目录和模型目录添加到 sys.path 中
+# Add data and model directories to sys.path
 sys.path.append(DATA_DIR)
 sys.path.append(MODEL_DIR)
 sys.path.append(TOOL_DIR)
 
-# 设置 src 目录为 PYTHONPATH
+# Set src directory as PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from tool.ImageProcessor import ImageProcessor
@@ -28,14 +30,21 @@ class BGRListType(click.ParamType):
                 return tuple(float(x) for x in value.split(','))
             except ValueError:
                 self.fail(f'{value} is not a valid BGR list format. Expected format: FLOAT,FLOAT,FLOAT.')
-        return (1.0, 1.0, 1.0)  # 默认值
+        return 1.0, 1.0, 1.0  # Default value
 
 
 def get_language():
-    return os.getenv('CLI_LANGUAGE', 'en')  # 默认语言为英文
+    # Get custom language environment variable
+    language = os.getenv('CLI_LANGUAGE', '')
+    if language == '':
+        # Get system language
+        system_language, _ = locale.getdefaultlocale()
+        language = 'en' if system_language and system_language.startswith('en') else 'zh'
+        return language
+    return language
 
 
-# 定义多语言支持的输出信息
+# Define multilingual support messages
 messages = {
     'en': {
         'corrected_saved': 'Corrected image saved to {path}',
@@ -51,6 +60,7 @@ messages = {
     }
 }
 
+
 def echo_message(key, **kwargs):
     lang = get_language()
     message = messages.get(lang, messages['en']).get(key, '')
@@ -63,7 +73,8 @@ def echo_message(key, **kwargs):
               default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/yolov8n-pose.onnx'),
               help='Path to YOLOv8 model' if get_language() == 'en' else 'YOLOv8 模型路径')
 @click.option('-u', '--yunet-model-path', type=click.Path(),
-              default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/face_detection_yunet_2023mar.onnx'),
+              default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   'model/face_detection_yunet_2023mar.onnx'),
               help='Path to YuNet model' if get_language() == 'en' else 'YuNet 模型路径')
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
               default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/RMBG-1.4-model.onnx'),
@@ -97,22 +108,16 @@ def echo_message(key, **kwargs):
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list, save_path, photo_type,
         photo_sheet_size, compress, save_corrected,
         change_background, save_background, sheet_rows, sheet_cols, rotate, resize, save_resized):
-    """
-    图像处理 CLI 工具
-
-    IMG_PATH: 输入图像路径
-    """
-    # 创建图像处理器实例
+    # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list, y_b=compress)
-
-    # 裁剪并修正图像
+    # Crop and correct image
     processor.crop_and_correct_image()
     if save_corrected:
         corrected_path = os.path.splitext(save_path)[0] + '_corrected' + os.path.splitext(save_path)[1]
         processor.save_photos(corrected_path, compress)
         echo_message('corrected_saved', path=corrected_path)
 
-    # 可选的替换背景
+    # Optional background change
     if change_background:
         processor.change_background()
         if save_background:
@@ -120,7 +125,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list
             processor.save_photos(background_path, compress)
             echo_message('background_saved', path=background_path)
 
-    # 可选的调整尺寸
+    # Optional resizing
     if resize:
         processor.resize_image(photo_type)
         if save_resized:
@@ -128,8 +133,8 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list
             processor.save_photos(resized_path, compress)
             echo_message('resized_saved', path=resized_path)
 
-    # 生成照片表格
-    # 设置照片表格尺寸
+    # Generate photo sheet
+    # Set photo sheet size
     if photo_sheet_size == '5':
         sheet_width, sheet_height = 1050, 1500
     else:

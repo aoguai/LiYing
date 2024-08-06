@@ -1,4 +1,5 @@
 @echo off
+set CLI_LANGUAGE=zh
 setlocal enabledelayedexpansion
 
 REM 获取当前批处理文件所在目录
@@ -20,7 +21,7 @@ set INPUT_PATH=%~1
 
 echo                  LiYing
 echo Github: https://github.com/aoguai/LiYing
-echo LICENSE: AGPL-3.0 license
+echo LICENSE AGPL-3.0 license
 echo ----------------------------------------
 REM 询问用户输入参数
 REM 询问用户是否调整图像尺寸
@@ -43,8 +44,8 @@ if /i "!resize!"=="no" (
     if "!photo_type!"=="" set photo_type="一寸照片"
 )
 
-set /p "photo-sheet-size=请输入 相片纸尺寸（默认为 5寸）："
-if "!photo-sheet-size!"=="" set photo-sheet-size="5寸"
+set /p "photo-sheet-size=请输入 相片纸尺寸（默认为 5）："
+if "!photo-sheet-size!"=="" set photo-sheet-size="5"
 
 set /p "compress=是否压缩图像（yes/no，默认为 yes）："
 if /i "!compress!"=="no" set compress=--no-compress

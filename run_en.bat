@@ -21,7 +21,7 @@ set INPUT_PATH=%~1
 
 echo                  LiYing
 echo Github: https://github.com/aoguai/LiYing
-echo LICENSE: AGPL-3.0 license
+echo LICENSE AGPL-3.0 license
 echo ----------------------------------------
 REM Prompt user for input parameters
 REM Ask the user whether to resize images
@@ -40,12 +40,12 @@ if /i "!resize!"=="no" (
         set save_resized=--no-save-resized
     )
     REM Ask for photo type
-    set /p "photo_type=Enter photo type (default is passport photo):"
-    if "!photo_type!"=="" set photo_type="passport photo"
+    set /p "photo_type=Enter photo type (default is one_inch_photo):"
+    if "!photo_type!"=="" set photo_type="one_inch_photo"
 )
 
-set /p "photo-sheet-size=Enter photo sheet size (default is 5 inches):"
-if "!photo-sheet-size!"=="" set photo-sheet-size="5 inches"
+set /p "photo-sheet-size=Enter photo sheet size (default is 5):"
+if "!photo-sheet-size!"=="" set photo-sheet-size="5"
 
 set /p "compress=Compress images (yes/no, default is yes):"
 if /i "!compress!"=="no" set compress=--no-compress
