@@ -97,18 +97,14 @@ run.bat ./images/test1.jpg
 python main.py --help
 Usage: main.py [OPTIONS] IMG_PATH
 
-  图像处理 CLI 工具
-
-  IMG_PATH: 输入图像路径
-
 Options:
   -y, --yolov8-model-path PATH    YOLOv8 模型路径
   -u, --yunet-model-path PATH     YuNet 模型路径
   -r, --rmbg-model-path PATH      RMBG 模型路径
-  -b, --bgr-list BGR_LIST         BGR 通道值列表（逗号分隔），用于图像合成
+  -b, --bgr-list BGR_LIST         BGR 通道值列表（英文逗号分隔），用于图像合成
   -s, --save-path PATH            保存路径
   -p, --photo-type TEXT           照片类型
-  --photo-sheet-size [5|6]        选择照片表格的尺寸（五寸或六寸）
+  --photo-sheet-size TEXT         选择照片表格的尺寸
   -c, --compress / --no-compress  是否压缩图像
   -sc, --save-corrected / --no-save-corrected
                                   是否保存修正图像后的图片
@@ -128,9 +124,9 @@ Options:
 
 #### 其他配置
 
-在该版本中，在`data/data.ini`中设置了常规的证件照配置，您可以在`photo-type`参数中使用。
+在该版本中，在`data/data-zh.ini`中设置了常规的证件照配置，您可以在`photo-type`和`photo-sheet-size`参数中使用。
 
-同时你可以修改该配置文件，自定义证件照类型。其格式为
+同时你可以修改该配置文件，自定义证件照类型。针对中文环境，其格式为
 ```text
 [XXX]
 打印尺寸 = XXXcm x XXXcm
@@ -139,9 +135,9 @@ Options:
 ```
 其中节名称及`[XXX]`和`电子版尺寸 = XXXpx x XXXpx`是必须的。
 
-其中节名称代表了其`photo-type`参数。
+其中节名称代表了其`photo-type`和`photo-sheet-size`参数输入值。
 
-目前，针对尺寸大小的 `key` 只支持固定中文 `电子版尺寸`，将在以后版本改进。
+同时`photo-type`和`photo-sheet-size`还支持直接输入形如`XXXpx x XXXpx`的字符串，代表宽高。
 
 ## 致谢
 

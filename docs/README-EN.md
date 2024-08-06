@@ -97,10 +97,6 @@ run_en.bat ./images/test1.jpg
 python main.py --help
 Usage: main.py [OPTIONS] IMG_PATH
 
-  Image Processing CLI Tools
-
-  IMG_PATH: Input Image Path
-
 Options:
   -y, --yolov8-model-path PATH    Path to YOLOv8 model
   -u, --yunet-model-path PATH     Path to YuNet model
@@ -109,7 +105,7 @@ Options:
                                   for image composition
   -s, --save-path PATH            Path to save the output image
   -p, --photo-type TEXT           Type of photo
-  --photo-sheet-size [5|6]        Size of the photo sheet (5-inch or 6-inch)
+  --photo-sheet-size TEXT         Size of the photo sheet
   -c, --compress / --no-compress  Whether to compress the image
   -sc, --save-corrected / --no-save-corrected
                                   Whether to save the corrected image
@@ -127,22 +123,22 @@ Options:
   --help                          Show this message and exit.
 ```
 
-#### Other Configuration
+### Other Configuration
 
-In this version, the standard ID photo configuration is set in `data/data.ini`, which you can use with the `photo-type` parameter.
+In this version, the standard ID photo settings are configured in `data/data_en.ini`. You can use the `photo-type` and `photo-sheet-size` parameters.
 
-You can also modify this configuration file to customize ID photo types. The format is as follows:
+Additionally, you can modify this configuration file to customize the ID photo types. For the Chinese environment, the format is as follows:
 ```text
 [XXX]
-打印尺寸 = XXXcm x XXXcm
-电子版尺寸 = XXXpx x XXXpx
-分辨率 = XXXdpi
+print_size = XXXcm x XXXcm
+electronic_size = XXXpx x XXXpx
+resolution = XXXdpi
 ```
-The section name and `电子版尺寸 = XXXpx x XXXpx` are required.
+The section name `[XXX]` and the line `electronic_size = XXXpx x XXXpx` are mandatory.
 
-The section name represents the `photo-type` parameter.
+The section name represents the values for the `photo-type` and `photo-sheet-size` parameters.
 
-Currently, the `key` for size only supports the fixed Chinese `电子版尺寸` (Digital Size). This will be improved in future versions.
+Furthermore, `photo-type` and `photo-sheet-size` also support direct input of strings in the format `XXXpx x XXXpx`, representing width and height.
 
 ## Acknowledgments
 
