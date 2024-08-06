@@ -44,8 +44,8 @@ if /i "!resize!"=="no" (
     if "!photo_type!"=="" set photo_type="一寸照片"
 )
 
-set /p "photo-sheet-size=请输入 相片纸尺寸（默认为 5）："
-if "!photo-sheet-size!"=="" set photo-sheet-size="5"
+set /p "photo-sheet-size=请输入 相片纸尺寸（默认为 五寸照片）："
+if "!photo-sheet-size!"=="" set photo-sheet-size="五寸照片"
 
 set /p "compress=是否压缩图像（yes/no，默认为 yes）："
 if /i "!compress!"=="no" set compress=--no-compress

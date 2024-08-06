@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from tool.ImageProcessor import ImageProcessor
 from tool.PhotoSheetGenerator import PhotoSheetGenerator
 
+from tool.PhotoRequirements import PhotoRequirements
+
 
 class BGRListType(click.ParamType):
     name = 'bgr_list'
@@ -85,8 +87,8 @@ def echo_message(key, **kwargs):
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
 @click.option('-p', '--photo-type', type=str, default='一寸照片',
               help='Type of photo' if get_language() == 'en' else '照片类型')
-@click.option('--photo-sheet-size', type=click.Choice(['5', '6'], case_sensitive=False), default='5',
-              help='Size of the photo sheet (5-inch or 6-inch)' if get_language() == 'en' else '选择照片表格的尺寸（五寸或六寸）')
+@click.option('--photo-sheet-size', type=str, default='five_inch_photo' if get_language() == 'en' else '五寸照片',
+              help='Size of the photo sheet' if get_language() == 'en' else '选择照片表格的尺寸')
 @click.option('-c', '--compress/--no-compress', default=False,
               help='Whether to compress the image' if get_language() == 'en' else '是否压缩图像')
 @click.option('-sc', '--save-corrected/--no-save-corrected', default=False,
@@ -110,6 +112,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list
         change_background, save_background, sheet_rows, sheet_cols, rotate, resize, save_resized):
     # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list, y_b=compress)
+    photo_requirements_detector = PhotoRequirements()
     # Crop and correct image
     processor.crop_and_correct_image()
     if save_corrected:
@@ -135,10 +138,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list
 
     # Generate photo sheet
     # Set photo sheet size
-    if photo_sheet_size == '5':
-        sheet_width, sheet_height = 1050, 1500
-    else:
-        sheet_width, sheet_height = 1300, 1950
+    sheet_width, sheet_height, _ = photo_requirements_detector.get_resize_image_list(photo_sheet_size)
     generator = PhotoSheetGenerator([sheet_width, sheet_height])
     photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate)
     sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]

@@ -44,8 +44,8 @@ if /i "!resize!"=="no" (
     if "!photo_type!"=="" set photo_type="one_inch_photo"
 )
 
-set /p "photo-sheet-size=Enter photo sheet size (default is 5):"
-if "!photo-sheet-size!"=="" set photo-sheet-size="5"
+set /p "photo-sheet-size=Enter photo sheet size (default is five_inch_photo):"
+if "!photo-sheet-size!"=="" set photo-sheet-size="five_inch_photo"
 
 set /p "compress=Compress images (yes/no, default is yes):"
 if /i "!compress!"=="no" set compress=--no-compress

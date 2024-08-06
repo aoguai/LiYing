@@ -51,12 +51,14 @@ class PhotoRequirements:
     def get_resize_image_list(self, photo_type):
         requirements = self.get_requirements(photo_type)
         if not requirements:
-            print("The specified photo type was not found.")
-            return None
-
-        electronic_size = requirements['electronic_size'].replace("dpi", "")
-        if electronic_size == 'N/A':
-            return "300"
+            try:
+                electronic_size = photo_type.replace("dpi", "")
+            except ValueError:
+                raise ValueError(f"Invalid electronic_size format: {photo_type}")
+        else:
+            electronic_size = requirements['electronic_size'].replace("dpi", "")
+            if electronic_size == 'N/A':
+                return [None, None, None]
 
         try:
             width, height = map(int, electronic_size.replace("px", "").split(' x '))
