@@ -28,7 +28,7 @@ LiYing 可以完全离线运行。所有图像处理操作都在本地运行。
 
 ### 整合包
 
-如果你是 Windows 用户且没有代码阅览需求，可以[下载整合包](https://github.com/aoguai/LiYing/releases/latest)（已在 Windows 7 SP1 &  Windows 10），解压将图片或目录拖入 run.bat 即可启动 LiYing。
+如果你是 Windows 用户且没有代码阅览需求，可以[下载整合包](https://github.com/aoguai/LiYing/releases/latest)（已在 Windows 7 SP1 &  Windows 10 测试），解压将图片或目录拖入 run_zh.bat 即可启动 LiYing。
 
 ### 设置和安装
 
@@ -139,6 +139,13 @@ Options:
 
 同时`photo-type`和`photo-sheet-size`还支持直接输入形如`XXXpx x XXXpx`的字符串，代表宽高。
 
+## 更新日志
+
+- **2024/08/06 更新**
+  - 新增 photo-type 和 photo-sheet-size 支持直接输入宽高像素，支持使用 data.ini 配置
+  - 修复 部分 i18n 导致的已知问题，现在可以兼容中英文配置
+  - 修复 其他已知BUG
+
 ## 致谢
 
 该项目的制作初衷和项目名称来源于帮助我的父母更轻松的完成他们的工作，在此感谢我的父母。
@@ -170,3 +177,13 @@ LiYing 是一个开源项目，非常欢迎社区的参与。要为该项目做�
 ## License 说明
 
 [LiYing](https://github.com/aoguai/LiYing) 使用 AGPL-3.0 license 进行开源，详情请参阅 [LICENSE](../LICENSE) 文件。
+
+## Star History
+
+<a href="https://star-history.com/#aoguai/LiYing&Timeline">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline" />
+  </picture>
+</a>

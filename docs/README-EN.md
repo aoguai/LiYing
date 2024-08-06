@@ -28,7 +28,7 @@ LiYing can run completely offline. All image processing operations are performed
 
 ### Bundled Package
 
-If you are a Windows user and do not need to review the code, you can [download the bundled package](https://github.com/aoguai/LiYing/releases/latest) (tested on Windows 7 SP1 & Windows 10). Extract it and drag your images or directory into `run.bat` to start LiYing.
+If you are a Windows user and do not need to review the code, you can [download the bundled package](https://github.com/aoguai/LiYing/releases/latest) (tested on Windows 7 SP1 & Windows 10). Extract it and drag your images or directory into `run_en.bat` to start LiYing.
 
 ### Setup and Installation
 
@@ -140,6 +140,14 @@ The section name represents the values for the `photo-type` and `photo-sheet-siz
 
 Furthermore, `photo-type` and `photo-sheet-size` also support direct input of strings in the format `XXXpx x XXXpx`, representing width and height.
 
+## Changelog
+
+- **2024/08/06 Update**
+  - Added support for entering width and height in pixels directly for `photo-type` and `photo-sheet-size`, and support for configuration via `data.ini`.
+  - Fixed issues related to some i18n configurations; now compatible with both English and Chinese settings.
+  - Fixed other known bugs.
+
+
 ## Acknowledgments
 
 The project was created to help my parents complete their work more easily. I would like to thank my parents for their support.
@@ -169,3 +177,14 @@ LiYing is an open-source project, and community participation is highly welcomed
 ## License
 
 [LiYing](https://github.com/aoguai/LiYing) is open-sourced under the AGPL-3.0 license. For details, please refer to the [LICENSE](../LICENSE) file.
+
+
+## Star History
+
+<a href="https://star-history.com/#aoguai/LiYing&Timeline">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=aoguai/subscription&type=Timeline" />
+  </picture>
+</a>
