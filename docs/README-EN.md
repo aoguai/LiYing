@@ -104,8 +104,11 @@ Options:
   -b, --rgb-list RGB_LIST         RGB channel values list (comma-separated)
                                   for image composition
   -s, --save-path PATH            Path to save the output image
-  -p, --photo-type TEXT           Type of photo
-  --photo-sheet-size TEXT         Size of the photo sheet
+  -p, --photo-type TEXT           Photo types(supporting formats of XXpx x
+                                  XXpx or those specified in the data.ini)
+  --photo-sheet-size TEXT         Size of the photo sheet(supporting formats
+                                  of XXpx x XXpx or those specified in the
+                                  data.ini)
   -c, --compress / --no-compress  Whether to compress the image
   -sc, --save-corrected / --no-save-corrected
                                   Whether to save the corrected image
@@ -121,6 +124,7 @@ Options:
   -srz, --save-resized / --no-save-resized
                                   Whether to save the resized image
   --help                          Show this message and exit.
+
 ```
 
 ### Other Configuration

@@ -100,7 +100,6 @@ class ImageSegmentation:
         except Exception as e:
             raise RuntimeError(f"Error processing images: {e}")
 
-        print(self.rgb_list)
         no_bg_image = Image.new("RGBA", orig_image.size, self.rgb_list)
 
         # Paste the original image using the mask

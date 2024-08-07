@@ -7,65 +7,108 @@ body:
   - type: markdown
     attributes:
       value: |
-        创建一个反馈报告以帮助我们改进 / Create a feedback report to help us improve
+        创建一个反馈报告以帮助我们改进
+        
+        Create a feedback report to help us improve
   - type: checkboxes
     id: checkboxes
     attributes:
-      label: 一些验证 / Some verifications
-      description: 在提交问题之前，请确保您完成以下操作 / Before submitting an issue, please ensure you have completed the following
+      label: |
+        一些验证
+        
+        Some verifications
+      description: |
+        在提交问题之前，请确保您完成以下操作
+        
+        Before submitting an issue, please ensure you have completed the following
       options:
-        - label: 是否查看 wiki、issues 后自己尝试解决 / Have you tried to resolve the issue by checking the wiki and existing issues?
+        - label: |
+            是否查看 wiki、issues 后自己尝试解决
+            
+            Have you tried to resolve the issue by checking the wiki and existing issues?
           required: true
-        - label: 请 **确保** 您的问题能在 [releases](https://github.com/aoguai/LiYing/releases/latest) 发布的最新版本(包含测试版本)上复现 (如果不是请先更新到最新版本复现后再提交问题) / Please **ensure** your issue can be reproduced on the latest version (including test versions) released in [releases](https://github.com/aoguai/LiYing/releases/latest) (if not, please update to the latest version and reproduce the issue before submitting it)
+        - label: |
+            请 **确保** 您的问题能在 [releases](https://github.com/aoguai/LiYing/releases/latest) 发布的最新版本(包含测试版本)上复现 (如果不是请先更新到最新版本复现后再提交问题)
+            
+            Please **ensure** your issue can be reproduced on the latest version (including test versions) released in [releases](https://github.com/aoguai/LiYing/releases/latest) (if not, please update to the latest version and reproduce the issue before submitting it)
           required: true
-        - label: 搜索检查是否已经存在请求相同功能的问题/讨论，以避免重复创建问题 / Search to check if there are already issues/discussions requesting the same feature to avoid duplication
+        - label: |
+            搜索检查是否已经存在请求相同功能的问题/讨论，以避免重复创建问题
+            
+            Search to check if there are already issues/discussions requesting the same feature to avoid duplication
           required: true
-        - label: 确认知晓并同意维护者直接关闭不符合 issue 规范的问题 / Acknowledge and agree that maintainers can directly close issues that do not follow the issue guidelines
+        - label: |
+            确认知晓并同意维护者直接关闭不符合 issue 规范的问题
+            
+            Acknowledge and agree that maintainers can directly close issues that do not follow the issue guidelines
           required: true
-        - label: 确保提供下列BUG描述及其复现步骤, 否则我同意维护者直接关闭问题 / Ensure to provide the following bug description and reproduction steps, otherwise, I agree that maintainers can directly close the issue
+        - label: |
+            确保提供下列BUG描述及其复现步骤, 否则我同意维护者直接关闭问题
+            
+            Ensure to provide the following bug description and reproduction steps, otherwise, I agree that maintainers can directly close the issue
           required: true
   - type: textarea
     id: bug-description
     attributes:
       label: |
-        BUG 描述或反馈描述 / Bug description or feedback description
+        BUG 描述或反馈描述
+        
+        Bug description or feedback description
       description: |
-        请输入 BUG 描述或反馈描述及其复现步骤，请使用尽量准确的描述。 / Please enter the bug description or feedback description and its reproduction steps. Use as accurate a description as possible.
+        请输入 BUG 描述或反馈描述及其复现步骤，请使用尽量准确的描述。
+        
+        Please enter the bug description or feedback description and its reproduction steps. Use as accurate a description as possible.
     validations:
       required: true
   - type: textarea
     id: expected-behavior
     attributes:
       label: |
-        预期的效果 / Expected behavior
+        预期的效果
+        
+        Expected behavior
       description: |
-        简明扼要地描述你原来希望的效果。 / Briefly describe what you originally expected to happen.
+        简明扼要地描述你原来希望的效果。
+        
+        Briefly describe what you originally expected to happen.
     validations:
       required: true
   - type: textarea
     id: screenshots
     attributes:
       label: |
-        截图 / Screenshots
+        截图
+        
+        Screenshots
       description: |
-        添加截图以帮助解释你的问题。 / Add screenshots to help explain your issue.
+        添加截图以帮助解释你的问题。
+        
+        Add screenshots to help explain your issue.
     validations:
       required: true
   - type: textarea
     id: system-info
     attributes:
       label: |
-        系统信息 / System information
+        系统信息
+        
+        System information
       description: |
-        请说明您的操作系统: [例如.Windows]以及软件版本 [例如. V1.6] / Please specify your operating system: [e.g., Windows] and software version [e.g., V1.6]
+        请说明您的操作系统: [例如.Windows]以及软件版本 [例如. V1.6]
+        
+        Please specify your operating system: [e.g., Windows] and software version [e.g., V1.6]
     validations:
       required: true
   - type: textarea
     id: additional-info
     attributes:
       label: |
-        额外的信息 / Additional information
+        额外的信息
+        
+        Additional information
       description: |
-        在此添加关于问题的任何其他背景、猜想、推断。 / Add any other context, assumptions, or inferences about the issue here.
+        在此添加关于问题的任何其他背景、猜想、推断。
+        
+        Add any other context, assumptions, or inferences about the issue here.
     validations:
       required: false

@@ -86,11 +86,11 @@ def echo_message(key, **kwargs):
 @click.option('-s', '--save-path', type=click.Path(), default='output.jpg',
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
 @click.option('-p', '--photo-type', type=str, default='one_inch_photo' if get_language() == 'en' else '一寸照片',
-              help='Type of photo' if get_language() == 'en' else '照片类型')
+              help='Photo types(supporting formats of XXpx x XXpx or those specified in the data.ini)' if get_language() == 'en' else '照片类型（支持 XXpx x XXpx 格式或 data.ini 中指定的格式）')
 @click.option('--photo-sheet-size', type=str, default='five_inch_photo' if get_language() == 'en' else '五寸照片',
-              help='Size of the photo sheet' if get_language() == 'en' else '选择照片表格的尺寸')
+              help='Size of the photo sheet(supporting formats of XXpx x XXpx or those specified in the data.ini)' if get_language() == 'en' else '选择照片表格的尺寸（支持 XXpx x XXpx 格式或 data.ini 中指定的格式）')
 @click.option('-c', '--compress/--no-compress', default=False,
-              help='Whether to compress the image' if get_language() == 'en' else '是否压缩图像')
+              help='Whether to compress the image' if get_language() == 'en' else '是否压缩图像（使用 AGPicCompress 压缩）')
 @click.option('-sc', '--save-corrected/--no-save-corrected', default=False,
               help='Whether to save the corrected image' if get_language() == 'en' else '是否保存修正图像后的图片')
 @click.option('-bg', '--change-background/--no-change-background', default=False,

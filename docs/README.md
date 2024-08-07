@@ -94,7 +94,7 @@ run.bat ./images/test1.jpg
 
 #### CIL 参数信息与帮助
 ```shell
-python main.py --help
+python main.py --help 
 Usage: main.py [OPTIONS] IMG_PATH
 
 Options:
@@ -103,9 +103,10 @@ Options:
   -r, --rmbg-model-path PATH      RMBG 模型路径
   -b, --rgb-list RGB_LIST         RGB 通道值列表（英文逗号分隔），用于图像合成
   -s, --save-path PATH            保存路径
-  -p, --photo-type TEXT           照片类型
-  --photo-sheet-size TEXT         选择照片表格的尺寸
-  -c, --compress / --no-compress  是否压缩图像
+  -p, --photo-type TEXT           照片类型（支持 XXpx x XXpx 格式或 data.ini 中指定的格式）
+  --photo-sheet-size TEXT         选择照片表格的尺寸（支持 XXpx x XXpx 格式或 data.ini
+                                  中指定的格式）
+  -c, --compress / --no-compress  是否压缩图像（使用 AGPicCompress 压缩）
   -sc, --save-corrected / --no-save-corrected
                                   是否保存修正图像后的图片
   -bg, --change-background / --no-change-background
