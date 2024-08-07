@@ -64,11 +64,11 @@ if /i "!change_background!"=="no" (
 ) else (
     set change_background=--change-background
     REM Ask for background color
-    set /p "bgr_list=Enter BGR channel values (comma separated, default is 1.0,1.0,1.0):"
-    if "!bgr_list!"=="red" set bgr_list=1.0,0.0,0.0
-    if "!bgr_list!"=="blue" set bgr_list=0.05,0.36,0.647
-    if "!bgr_list!"=="white" set bgr_list=1.0,1.0,1.0
-    if "!bgr_list!"=="" set bgr_list=1.0,1.0,1.0
+    set /p "rgb_list=Enter RGB channel values (comma separated, default is 255,255,255):"
+    if "!rgb_list!"=="red" set rgb_list=255,0,0
+    if "!rgb_list!"=="blue" set rgb_list=12,92,165
+    if "!rgb_list!"=="white" set rgb_list=255,255,255
+    if "!rgb_list!"=="" set rgb_list=255,255,255
     REM Ask whether to save the changed background image
     set /p "save_background=Save images with changed background (yes/no, default is no):"
     if /i "!save_background!"=="yes" (
@@ -97,14 +97,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM Execute Python script to process the image
-        "%PYTHON_EXE%" "%SCRIPT_PATH%" "%%~ff" ^
-            -b "%bgr_list%" ^
-            -s "%%~dpnf_output%%~xf" ^
-            -p "%photo_type%" ^
-            --photo-sheet-size "%photo-sheet-size%"^
-            %compress% %save_corrected% %change_background% %save_background% ^
-            -sr %sheet_rows% -sc %sheet_cols% ^
-            %rotate% %resize% %save_resized%
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% %%~ff -b %rgb_list% -s %%~dpnf_output%%~xf -p %photo_type% --photo-sheet-size %photo-sheet-size% %compress% %save_corrected% %change_background% %save_background% -sr %sheet_rows% -sc %sheet_cols% %rotate% %resize% %save_resized% & pause"
     )
 ) else (
     REM If it's a file, process the file directly
@@ -113,14 +106,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
     REM Due to setlocal enabledelayedexpansion, use !variable_name! to reference variables
-    start "" "%PYTHON_EXE%" "%SCRIPT_PATH%" "!INPUT_PATH!" ^
-        -b "%bgr_list%" ^
-        -s "!OUTPUT_PATH!" ^
-        -p "%photo_type%" ^
-        --photo-sheet-size "%photo-sheet-size%"^
-        %compress% %save_corrected% %change_background% %save_background% ^
-        -sr %sheet_rows% -sc %sheet_cols% ^
-        %rotate% %resize% %save_resized%
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% !INPUT_PATH! -b %rgb_list% -s !OUTPUT_PATH! -p %photo_type% --photo-sheet-size %photo-sheet-size% %compress% %save_corrected% %change_background% %save_background% -sr %sheet_rows% -sc %sheet_cols% %rotate% %resize% %save_resized% & pause"
 )
 
 pause

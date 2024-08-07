@@ -101,7 +101,7 @@ Options:
   -y, --yolov8-model-path PATH    Path to YOLOv8 model
   -u, --yunet-model-path PATH     Path to YuNet model
   -r, --rmbg-model-path PATH      Path to RMBG model
-  -b, --bgr-list BGR_LIST         BGR channel values list (comma-separated)
+  -b, --rgb-list RGB_LIST         RGB channel values list (comma-separated)
                                   for image composition
   -s, --save-path PATH            Path to save the output image
   -p, --photo-type TEXT           Type of photo

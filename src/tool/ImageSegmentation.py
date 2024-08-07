@@ -1,30 +1,26 @@
 import onnxruntime as ort
 import numpy as np
 from PIL import Image
+import cv2  # 添加OpenCV库的导入
 
 
-def bgr_to_rgba(bgr):
-    if not isinstance(bgr, (list, tuple)) or len(bgr) != 3:
-        raise ValueError("bgr must be a list or tuple containing three elements")
-    if any(not (0 <= color <= 1) for color in bgr):
-        raise ValueError("bgr values must be in the range [0, 1]")
+def rgb_to_rgba(rgb):
+    if not isinstance(rgb, (list, tuple)) or len(rgb) != 3:
+        raise ValueError("rgb must be a list or tuple containing three elements")
+    if any(not (0 <= color <= 255) for color in rgb):
+        raise ValueError("rgb values must be in the range [0, 255]")
 
-    blue, green, red = bgr
-
-    # Normalize to the 255 range
-    red = int(red * 255)
-    green = int(green * 255)
-    blue = int(blue * 255)
+    red, green, blue = rgb
 
     # Add Alpha channel (fully opaque)
     alpha = 255
 
     # Return RGBA values
-    return red, green, blue, alpha
+    return (red, green, blue, alpha)
 
 
 class ImageSegmentation:
-    def __init__(self, model_path: str, model_input_size: list, bgr_list: list):
+    def __init__(self, model_path: str, model_input_size: list, rgb_list: list):
         if not isinstance(model_path, str) or not model_path.endswith('.onnx'):
             raise ValueError("model_path must be a valid ONNX model file path")
         if not isinstance(model_input_size, list) or len(model_input_size) != 2:
@@ -40,7 +36,7 @@ class ImageSegmentation:
         except Exception as e:
             raise RuntimeError(f"Failed to load ONNX model: {e}")
 
-        self.bgr_list = bgr_to_rgba(bgr_list)
+        self.rgb_list = rgb_to_rgba(rgb_list)
 
     def preprocess_image(self, im: np.ndarray) -> np.ndarray:
         # If the image is grayscale, add a dimension to make it a color image
@@ -79,7 +75,11 @@ class ImageSegmentation:
     def infer(self, image: np.ndarray) -> np.ndarray:
         # Prepare the input image
         orig_im_size = image.shape[0:2]
-        image_preprocessed = self.preprocess_image(image)
+
+        # Convert OpenCV image to PIL image
+        image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+
+        image_preprocessed = self.preprocess_image(np.array(image_pil))
 
         # Perform inference (image segmentation)
         ort_inputs = {self.ort_session.get_inputs()[0].name: image_preprocessed}
@@ -95,13 +95,18 @@ class ImageSegmentation:
         # Save the result image
         try:
             pil_im = Image.fromarray(result_image).convert("L")
-            orig_image = Image.fromarray(image).convert("RGBA")
+            orig_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGBA))
             pil_im = pil_im.resize(orig_image.size)
         except Exception as e:
             raise RuntimeError(f"Error processing images: {e}")
-        no_bg_image = Image.new("RGBA", orig_image.size, self.bgr_list)
+
+        print(self.rgb_list)
+        no_bg_image = Image.new("RGBA", orig_image.size, self.rgb_list)
+
+        # Paste the original image using the mask
         no_bg_image.paste(orig_image, mask=pil_im)
 
-        # Convert to OpenCV image
-        no_bg_image_cv = np.array(no_bg_image)
+        # Convert to OpenCV image (BGRA)
+        no_bg_image_cv = cv2.cvtColor(np.array(no_bg_image), cv2.COLOR_RGBA2BGRA)
+
         return no_bg_image_cv

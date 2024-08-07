@@ -21,7 +21,7 @@ class ImageProcessor:
                  yolov8_model_path=get_model_file('yolov8n-pose.onnx'),
                  yunet_model_path=get_model_file('face_detection_yunet_2023mar.onnx'),
                  RMBG_model_path=get_model_file('RMBG-1.4-model.onnx'),
-                 bgr_list=None,
+                 rgb_list=None,
                  y_b=False):
         """
         Initialize ImageProcessor instance
@@ -30,7 +30,7 @@ class ImageProcessor:
         :param yolov8_model_path: Path to the YOLOv8 model
         :param yunet_model_path: Path to the YuNet model
         :param RMBG_model_path: Path to the RMBG model
-        :param bgr_list: List of BGR channel values for image composition
+        :param rgb_list: List of rgb channel values for image composition
         """
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image path does not exist: {img_path}")
@@ -42,9 +42,8 @@ class ImageProcessor:
             raise FileNotFoundError(f"RMBG model path does not exist: {RMBG_model_path}")
 
         self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b)
-        # self.inference = ImageInference(RVM_model_path, bgr_list if bgr_list is not None else [1.0, 1.0, 1.0])
         self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[1024, 1024],
-                                              bgr_list=bgr_list if bgr_list is not None else [1.0, 1.0, 1.0])
+                                              rgb_list=rgb_list if rgb_list is not None else [255, 255, 255])
         self.photo_requirements_detector = PhotoRequirements()
 
     @staticmethod
@@ -173,18 +172,18 @@ class ImageProcessor:
         else:
             raise ValueError('No single person detected.')
 
-    def change_background(self, bgr_list=None) -> PhotoEntity:
+    def change_background(self, rgb_list=None) -> PhotoEntity:
         """
         Replace the background of the human region in the image
 
-        :param bgr_list: New list of BGR channel values
+        :param rgb_list: New list of RGB channel values
         :return: Updated PhotoEntity instance
         :rtype: PhotoEntity
         """
-        if bgr_list is not None:
-            if not (isinstance(bgr_list, list) and len(bgr_list) == 3):
-                raise ValueError("The BGR value format is incorrect")
-            self.segmentation.bgr_list = bgr_list
+        if rgb_list is not None:
+            if not (isinstance(rgb_list, list) and len(rgb_list) == 3):
+                raise ValueError("The RGB value format is incorrect")
+            self.segmentation.rgb_list = rgb_list
 
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo

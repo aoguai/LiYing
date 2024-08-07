@@ -23,16 +23,16 @@ from tool.PhotoSheetGenerator import PhotoSheetGenerator
 from tool.PhotoRequirements import PhotoRequirements
 
 
-class BGRListType(click.ParamType):
-    name = 'bgr_list'
+class RGBListType(click.ParamType):
+    name = 'rgb_list'
 
     def convert(self, value, param, ctx):
         if value:
             try:
-                return tuple(float(x) for x in value.split(','))
+                return tuple(int(x) for x in value.split(','))
             except ValueError:
-                self.fail(f'{value} is not a valid BGR list format. Expected format: FLOAT,FLOAT,FLOAT.')
-        return 1.0, 1.0, 1.0  # Default value
+                self.fail(f'{value} is not a valid RGB list format. Expected format: INTEGER,INTEGER,INTEGER.')
+        return 0, 0, 0  # Default value
 
 
 def get_language():
@@ -81,8 +81,8 @@ def echo_message(key, **kwargs):
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
               default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model/RMBG-1.4-model.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
-@click.option('-b', '--bgr-list', type=BGRListType(), default='1.0,1.0,1.0',
-              help='BGR channel values list (comma-separated) for image composition' if get_language() == 'en' else 'BGR 通道值列表（英文逗号分隔），用于图像合成')
+@click.option('-b', '--rgb-list', type=RGBListType(), default='0,0,0',
+              help='RGB channel values list (comma-separated) for image composition' if get_language() == 'en' else 'RGB 通道值列表（英文逗号分隔），用于图像合成')
 @click.option('-s', '--save-path', type=click.Path(), default='output.jpg',
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
 @click.option('-p', '--photo-type', type=str, default='one_inch_photo' if get_language() == 'en' else '一寸照片',
@@ -107,11 +107,11 @@ def echo_message(key, **kwargs):
               help='Whether to resize the image' if get_language() == 'en' else '是否调整图像尺寸')
 @click.option('-srz', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
-def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list, save_path, photo_type,
+def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, save_path, photo_type,
         photo_sheet_size, compress, save_corrected,
         change_background, save_background, sheet_rows, sheet_cols, rotate, resize, save_resized):
     # Create an instance of the image processor
-    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, bgr_list, y_b=compress)
+    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
     photo_requirements_detector = PhotoRequirements()
     # Crop and correct image
     processor.crop_and_correct_image()

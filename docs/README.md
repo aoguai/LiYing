@@ -101,7 +101,7 @@ Options:
   -y, --yolov8-model-path PATH    YOLOv8 模型路径
   -u, --yunet-model-path PATH     YuNet 模型路径
   -r, --rmbg-model-path PATH      RMBG 模型路径
-  -b, --bgr-list BGR_LIST         BGR 通道值列表（英文逗号分隔），用于图像合成
+  -b, --rgb-list RGB_LIST         RGB 通道值列表（英文逗号分隔），用于图像合成
   -s, --save-path PATH            保存路径
   -p, --photo-type TEXT           照片类型
   --photo-sheet-size TEXT         选择照片表格的尺寸

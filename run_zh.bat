@@ -21,7 +21,7 @@ set INPUT_PATH=%~1
 
 echo                  LiYing
 echo Github: https://github.com/aoguai/LiYing
-echo LICENSE AGPL-3.0 license
+echo LICENSE AGPL-3 license
 echo ----------------------------------------
 REM 询问用户输入参数
 REM 询问用户是否调整图像尺寸
@@ -64,11 +64,11 @@ if /i "!change_background!"=="no" (
 ) else (
     set change_background=--change-background
     REM 询问背景颜色
-    set /p "bgr_list=请输入 BGR 通道值列表（逗号分隔，默认为 1.0,1.0,1.0）："
-    if "!bgr_list!"=="红" set bgr_list=1.0,0.0,0.0
-    if "!bgr_list!"=="蓝" set bgr_list=0.05,0.36,0.647
-    if "!bgr_list!"=="白" set bgr_list=1.0,1.0,1.0
-    if "!bgr_list!"=="" set bgr_list=1.0,1.0,1.0
+    set /p "rgb_list=请输入 RGB 通道值列表（逗号分隔，默认为 255,255,255）："
+    if "!rgb_list!"=="红" set rgb_list=255,0,0
+    if "!rgb_list!"=="蓝" set rgb_list=12,92,165
+    if "!rgb_list!"=="白" set rgb_list=255,255,255
+    if "!rgb_list!"=="" set rgb_list=255,255,255
     REM 询问是否保存调整后的图像
     set /p "save_background=是否保存替换背景后的图像（yes/no，默认为 no）："
     if /i "!save_background!"=="yes" (
@@ -97,14 +97,8 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM 执行Python脚本处理图像
-        "%PYTHON_EXE%" "%SCRIPT_PATH%" "%%~ff" ^
-            -b "%bgr_list%" ^
-            -s "%%~dpnf_output%%~xf" ^
-            -p "%photo_type%" ^
-            --photo-sheet-size "%photo-sheet-size%"^
-            %compress% %save_corrected% %change_background% %save_background% ^
-            -sr %sheet_rows% -sc %sheet_cols% ^
-            %rotate% %resize% %save_resized%
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% %%~ff -b %rgb_list% -s %%~dpnf_output%%~xf -p %photo_type% --photo-sheet-size %photo-sheet-size% %compress% %save_corrected% %change_background% %save_background% -sr %sheet_rows% -sc %sheet_cols% %rotate% %resize% %save_resized% & pause"
+        
     )
 ) else (
     REM 如果是文件，则直接处理该文件
@@ -113,14 +107,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
 
     REM 由于使用了 setlocal enabledelayedexpansion 需要使用 !变量名! 来引用变量
-    start "" "%PYTHON_EXE%" "%SCRIPT_PATH%" "!INPUT_PATH!" ^
-        -b "%bgr_list%" ^
-        -s "!OUTPUT_PATH!" ^
-        -p "%photo_type%" ^
-        --photo-sheet-size "%photo-sheet-size%"^
-        %compress% %save_corrected% %change_background% %save_background% ^
-        -sr %sheet_rows% -sc %sheet_cols% ^
-        %rotate% %resize% %save_resized%
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% !INPUT_PATH! -b %rgb_list% -s !OUTPUT_PATH! -p %photo_type% --photo-sheet-size %photo-sheet-size% %compress% %save_corrected% %change_background% %save_background% -sr %sheet_rows% -sc %sheet_cols% %rotate% %resize% %save_resized% & pause"
 )
 
 pause
