@@ -244,6 +244,16 @@ class ImageProcessor:
         :param save_path: The path to save the image
         :param y_b: Whether to compress the image
         """
+        # Check the path length
+        max_path_length = 200
+        if len(save_path) > max_path_length:
+            # Intercepts the filename and keeps the rest of the path
+            dir_name = os.path.dirname(save_path)
+            base_name = os.path.basename(save_path)
+            ext = os.path.splitext(base_name)[1]
+            base_name = base_name[:200] + ext  # Ensure that filenames do not exceed 200 characters
+            save_path = os.path.join(dir_name, base_name)
+
         if y_b:
             ext = os.path.splitext(save_path)[1].lower()
             encode_format = '.jpg' if ext in ['.jpg', '.jpeg'] else '.png' if ext == '.png' else None

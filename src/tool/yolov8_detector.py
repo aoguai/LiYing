@@ -34,7 +34,7 @@ class YOLOv8Detector:
 
     def preprocess(self, img_path):
         # Read the image
-        img = cv.imread(img_path)
+        img = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
         if img is None:
             raise ValueError(f"Failed to read image from {img_path}")
 
