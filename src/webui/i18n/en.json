@@ -47,5 +47,14 @@
     "save_path": "Save Path",
     "no_image_to_save": "No image to save",
     "image_saved_success": "Image saved successfully at {path}",
-    "image_save_error": "Error saving image: {error}"
+    "image_save_error": "Error saving image: {error}",
+    "target_size": "Target File Size (KB)",
+    "size_range_min": "Min File Size (KB)",
+    "size_range_max": "Max File Size (KB)",
+    "use_csv_size": "Use size limits from CSV",
+    "size_range_error": "Min size must be less than max size",
+    "size_params_conflict": "Both target size and size range provided. Using target size.",
+    "size_input_option": "Size Input Method",
+    "target_size_radio": "Target Size",
+    "size_range_radio": "Size Range"
 }

@@ -71,5 +71,36 @@ class PhotoRequirements:
             'print_size': f"{actual_print_width_cm:.2f}cm x {actual_print_height_cm:.2f}cm"
         }
     
+    def get_file_size_limits(self, photo_type):
+        """
+        Get file size limits for a specific photo type.
+        
+        :param photo_type: Photo type name
+        :type photo_type: str
+        :return: Dictionary with target_size or size_range parameters
+        :rtype: dict
+        """
+        requirements = self.config_manager.get_size_config(photo_type)
+        if not requirements:
+            return {}
+        
+        # Get file size limits from requirements
+        min_size = requirements.get('FileSizeMin')
+        max_size = requirements.get('FileSizeMax')
+        
+        # Return appropriate compression parameters based on what's available
+        if min_size is not None and max_size is not None:
+            # If both min and max are defined, use size_range
+            return {'size_range': (min_size, max_size)}
+        elif min_size is not None:
+            # If only min is defined, use it as target_size
+            return {'target_size': min_size}
+        elif max_size is not None:
+            # If only max is defined, use it as target_size
+            return {'target_size': max_size}
+        else:
+            # If neither is defined, return empty dict
+            return {}
+    
     def switch_language(self, new_language):
         self.config_manager.switch_language(new_language)

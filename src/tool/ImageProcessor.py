@@ -11,6 +11,8 @@ from ImageSegmentation import ImageSegmentation
 from PhotoEntity import PhotoEntity
 from PhotoRequirements import PhotoRequirements
 
+from agpic import ImageCompressor
+
 
 def get_model_file(filename):
     return os.path.join('model', filename)
@@ -266,12 +268,32 @@ class ImageProcessor:
         
         return self.photo.image
 
-    def save_photos(self, save_path: str, y_b=False) -> None:
+    def save_photos(self, save_path: str, y_b=False, target_size=None, size_range=None) -> None:
         """
         Save the image to the specified path.
         :param save_path: The path to save the image
         :param y_b: Whether to compress the image
+        :param target_size: Target file size in KB. When specified, ignores quality.
+        :param size_range: A tuple of (min_size, max_size) in KB for the output file.
         """
+        # Parameter validation for target_size and size_range
+        if target_size is not None and size_range is not None:
+            warnings.warn("Both target_size and size_range provided. Using target_size and ignoring size_range.", 
+                           UserWarning)
+            size_range = None
+            
+        if target_size is not None and target_size <= 0:
+            raise ValueError(f"Target size must be greater than 0, got {target_size}")
+            
+        if size_range is not None:
+            if len(size_range) != 2:
+                raise ValueError(f"Size range must be a tuple of (min_size, max_size), got {size_range}")
+            min_size, max_size = size_range
+            if min_size <= 0 or max_size <= 0:
+                raise ValueError(f"Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}")
+            if min_size >= max_size:
+                raise ValueError(f"Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}")
+
         # Check the path length
         max_path_length = 200
         if len(save_path) > max_path_length:
@@ -297,12 +319,29 @@ class ImageProcessor:
         pil_image.info['dpi'] = (dpi, dpi)
 
         if y_b:
-            # Compress the image
             buffer = BytesIO()
-            pil_image.save(buffer, format="JPEG", quality=85, dpi=(dpi, dpi))
-            compressed_bytes = buffer.getvalue()
-            compressed_image = Image.open(BytesIO(compressed_bytes))
-            compressed_image.save(save_path, dpi=(dpi, dpi))
+            pil_image.save(buffer, format="JPEG")
+            image_bytes = buffer.getvalue()
+            
+            try:
+                if target_size is not None:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85, target_size=target_size
+                    )
+                elif size_range is not None:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85, size_range=size_range
+                    )
+                else:
+                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
+                        image_bytes, quality=85
+                    )
+                
+                compressed_image = Image.open(BytesIO(compressed_bytes))
+                compressed_image.save(save_path, dpi=(dpi, dpi))
+            except Exception as e:
+                warnings.warn(f"Image compression failed: {str(e)}. Saving uncompressed image.", UserWarning)
+                pil_image.save(save_path, dpi=(dpi, dpi))
         else:
             # Save the image without compression
             pil_image.save(save_path, dpi=(dpi, dpi))

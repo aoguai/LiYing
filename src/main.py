@@ -3,6 +3,7 @@ import locale
 import click
 import os
 import sys
+import warnings
 
 # Set the project root directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +34,23 @@ class RGBListType(click.ParamType):
             except ValueError:
                 self.fail(f'{value} is not a valid RGB list format. Expected format: INTEGER,INTEGER,INTEGER.')
         return 0, 0, 0  # Default value
+
+
+class SizeRangeType(click.ParamType):
+    name = 'size_range'
+
+    def convert(self, value, param, ctx):
+        if value:
+            try:
+                min_size, max_size = map(int, value.split(','))
+                if min_size <= 0 or max_size <= 0:
+                    self.fail(f'Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}')
+                if min_size >= max_size:
+                    self.fail(f'Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}')
+                return (min_size, max_size)
+            except ValueError:
+                self.fail(f'{value} is not a valid size range format. Expected format: MIN_SIZE,MAX_SIZE.')
+        return None
 
 
 def get_language():
@@ -116,17 +134,40 @@ def echo_message(key, **kwargs):
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
 @click.option('-al', '--add-crop-lines/--no-add-crop-lines', default=True, 
               help='Add crop lines to the photo sheet' if get_language() == 'en' else '在照片表格上添加裁剪线')
+@click.option('-ts', '--target-size', type=int,
+              help='Target file size in KB. When specified, ignores quality and size-range.' if get_language() == 'en' else '目标文件大小（KB）。指定后将忽略质量和大小范围参数。')
+@click.option('-sr', '--size-range', type=SizeRangeType(),
+              help='File size range in KB as min,max (e.g., 10,20)' if get_language() == 'en' else '文件大小范围（KB），格式为最小值,最大值（例如：10,20）')
+@click.option('-uc', '--use-csv-size/--no-use-csv-size', default=True,
+              help='Whether to use file size limits from CSV' if get_language() == 'en' else '是否使用CSV中的文件大小限制')
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
         photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
-        sheet_cols, rotate, resize, save_resized, add_crop_lines):
+        sheet_cols, rotate, resize, save_resized, add_crop_lines, target_size, size_range, use_csv_size):
+    # Parameter validation
+    if target_size is not None and size_range is not None:
+        warnings.warn("Both target_size and size_range are provided. Using target_size and ignoring size_range.")
+        size_range = None
+        
     # Create an instance of the image processor
     processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
     photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
+    
+    # Get file size limits from CSV if enabled
+    file_size_limits = {}
+    if use_csv_size:
+        file_size_limits = photo_requirements.get_file_size_limits(photo_type)
+        
+    # User-provided limits override CSV limits
+    if target_size is not None:
+        file_size_limits = {'target_size': target_size}
+    elif size_range is not None:
+        file_size_limits = {'size_range': size_range}
+    
     # Crop and correct image
     processor.crop_and_correct_image()
     if save_corrected:
         corrected_path = os.path.splitext(save_path)[0] + '_corrected' + os.path.splitext(save_path)[1]
-        processor.save_photos(corrected_path, compress)
+        processor.save_photos(corrected_path, compress, **file_size_limits)
         echo_message('corrected_saved', path=corrected_path)
 
     # Optional background change
@@ -134,7 +175,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
         processor.change_background()
         if save_background:
             background_path = os.path.splitext(save_path)[0] + '_background' + os.path.splitext(save_path)[1]
-            processor.save_photos(background_path, compress)
+            processor.save_photos(background_path, compress, **file_size_limits)
             echo_message('background_saved', path=background_path)
 
     # Optional resizing
@@ -142,7 +183,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
         processor.resize_image(photo_type)
         if save_resized:
             resized_path = os.path.splitext(save_path)[0] + '_resized' + os.path.splitext(save_path)[1]
-            processor.save_photos(resized_path, compress)
+            processor.save_photos(resized_path, compress, **file_size_limits)
             echo_message('resized_saved', path=resized_path)
 
     # Generate photo sheet

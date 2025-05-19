@@ -161,6 +161,24 @@ class ImageCompressor:
         :type webp_quality: int
         """
 
+        # Parameter validation
+        if target_size is not None:
+            if target_size <= 0:
+                raise ValueError(f"Target size must be greater than 0, got {target_size}")
+            if size_range is not None:
+                warnings.warn("Both target_size and size_range provided. Using target_size and ignoring size_range.",
+                              Warning)
+                size_range = None
+
+        if size_range is not None:
+            min_size, max_size = size_range
+            if min_size <= 0 or max_size <= 0:
+                raise ValueError(
+                    f"Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}")
+            if min_size >= max_size:
+                raise ValueError(
+                    f"Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}")
+
         # Check if the file exists
         if not fp.exists():
             raise FileNotFoundError(f'"{fp}": Path or directory does not exist')
@@ -616,6 +634,25 @@ class ImageCompressor:
         :return: The byte representation of the compressed image data.
         :rtype: bytes
         """
+
+        # Parameter validation
+        if target_size is not None:
+            if target_size <= 0:
+                raise ValueError(f"Target size must be greater than 0, got {target_size}")
+            if size_range is not None:
+                warnings.warn("Both target_size and size_range provided. Using target_size and ignoring size_range.",
+                              Warning)
+                size_range = None
+
+        if size_range is not None:
+            min_size, max_size = size_range
+            if min_size <= 0 or max_size <= 0:
+                raise ValueError(
+                    f"Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}")
+            if min_size >= max_size:
+                raise ValueError(
+                    f"Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}")
+
         with BytesIO(image_bytes) as img_buffer:
             img = Image.open(img_buffer).convert('RGB')
 

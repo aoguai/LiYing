@@ -47,5 +47,14 @@
     "save_path": "保存路径",
     "no_image_to_save": "暂无需要保存的图像",
     "image_saved_success": "图像已在 {path} 成功保存",
-    "image_save_error": "保存图像出错: {error}"
+    "image_save_error": "保存图像出错: {error}",
+    "target_size": "目标文件大小 (KB)",
+    "size_range_min": "最小文件大小 (KB)",
+    "size_range_max": "最大文件大小 (KB)",
+    "use_csv_size": "使用CSV中的文件大小限制",
+    "size_range_error": "最小大小必须小于最大大小",
+    "size_params_conflict": "同时提供了目标大小和大小范围。将使用目标大小。",
+    "size_input_option": "大小输入方式",
+    "target_size_radio": "目标大小",
+    "size_range_radio": "大小范围"
 }
