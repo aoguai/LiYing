@@ -130,13 +130,13 @@ def echo_message(key, **kwargs):
               help='Whether to rotate the photo by 90 degrees' if get_language() == 'en' else '是否旋转照片90度')
 @click.option('-rs', '--resize/--no-resize', default=True,
               help='Whether to resize the image' if get_language() == 'en' else '是否调整图像尺寸')
-@click.option('-sz', '--save-resized/--no-save-resized', default=False,
+@click.option('-svr', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
 @click.option('-al', '--add-crop-lines/--no-add-crop-lines', default=True, 
               help='Add crop lines to the photo sheet' if get_language() == 'en' else '在照片表格上添加裁剪线')
 @click.option('-ts', '--target-size', type=int,
               help='Target file size in KB. When specified, ignores quality and size-range.' if get_language() == 'en' else '目标文件大小（KB）。指定后将忽略质量和大小范围参数。')
-@click.option('-sr', '--size-range', type=SizeRangeType(),
+@click.option('-szr', '--size-range', type=SizeRangeType(),
               help='File size range in KB as min,max (e.g., 10,20)' if get_language() == 'en' else '文件大小范围（KB），格式为最小值,最大值（例如：10,20）')
 @click.option('-uc', '--use-csv-size/--no-use-csv-size', default=True,
               help='Whether to use file size limits from CSV' if get_language() == 'en' else '是否使用CSV中的文件大小限制')

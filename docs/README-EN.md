@@ -158,10 +158,16 @@ Options:
   -sc, --sheet-cols INTEGER       Number of columns in the photo sheet
   -rt, --rotate / --no-rotate     Whether to rotate the photo by 90 degrees
   -rs, --resize / --no-resize     Whether to resize the image
-  -sz, --save-resized / --no-save-resized
+  -svr, --save-resized / --no-save-resized
                                   Whether to save the resized image
   -al, --add-crop-lines / --no-add-crop-lines
                                   Add crop lines to the photo sheet
+  -ts, --target-size INTEGER      Target file size in KB. When specified,
+                                  ignores quality and size-range.
+  -szr, --size-range SIZE_RANGE   File size range in KB as min,max (e.g.,
+                                  10,20)
+  -uc, --use-csv-size / --no-use-csv-size
+                                  Whether to use file size limits from CSV
   --help                          Show this message and exit.
 
 ```

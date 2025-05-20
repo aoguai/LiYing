@@ -155,10 +155,14 @@ Options:
   -sc, --sheet-cols INTEGER       照片表格的列数
   -rt, --rotate / --no-rotate     是否旋转照片90度
   -rs, --resize / --no-resize     是否调整图像尺寸
-  -sz, --save-resized / --no-save-resized
+  -svr, --save-resized / --no-save-resized
                                   是否保存调整尺寸后的图像
   -al, --add-crop-lines / --no-add-crop-lines
                                   在照片表格上添加裁剪线
+  -ts, --target-size INTEGER      目标文件大小（KB）。指定后将忽略质量和大小范围参数。
+  -szr, --size-range SIZE_RANGE   文件大小范围（KB），格式为最小值,最大值（例如：10,20）
+  -uc, --use-csv-size / --no-use-csv-size
+                                  是否使用CSV中的文件大小限制
   --help                          Show this message and exit.
 
 ```
