@@ -7,3 +7,4 @@ gradio>=4.44.1
 Pillow
 opencv-python
 numpy
+piexif

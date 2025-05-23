@@ -88,13 +88,16 @@ def optimize_output_path(fp, output=None, force=False):
     :return: Output path.
     :rtype: Path
     """
-    if force and output:
-        if output.is_dir():
-            output.mkdir(parents=True, exist_ok=True)
-            new_fp = output / fp.name
+    if force:
+        if output:
+            if output.is_dir():
+                output.mkdir(parents=True, exist_ok=True)
+                new_fp = output / fp.name
+            else:
+                new_fp = output
         else:
-            new_fp = output
-    elif not force and output:
+            new_fp = fp
+    elif output:
         new_fp = generate_output_path(fp, output)
     else:
         new_fp = generate_output_path(fp)
@@ -136,6 +139,60 @@ def get_uuid(name):
 class ImageCompressor:
     def __init__(self):
         pass
+
+    @staticmethod
+    def _save_image(img, file_path, img_format=None, quality=None, existing_bytes=None):
+        """
+        Save image to file, avoiding secondary compression.
+
+        If existing_bytes is provided, it will be written directly to the file without further compression.
+        Otherwise, it will use PIL's convert and BytesIO methods to get image bytes, then write to file.
+
+        :param img: Image object. Can be None when existing_bytes is provided.
+        :type img: PIL.Image.Image or None
+        :param file_path: File path to save to.
+        :type file_path: Path
+        :param img_format: Image format ('JPEG', 'PNG', 'WEBP', etc.), must be provided when existing_bytes is None.
+        :type img_format: str or None
+        :param quality: Compression quality, only used when new compression is necessary.
+        :type quality: int or None
+        :param existing_bytes: Existing image byte data, if provided will be written directly to file.
+        :type existing_bytes: bytes or None
+        :return: File path
+        :rtype: Path
+        """
+        if existing_bytes:
+            with open(file_path, 'wb') as f:
+                f.write(existing_bytes)
+            return file_path
+
+        if not img:
+            raise ValueError("One of the img or existing_bytes parameters must be provided")
+
+        if not img_format:
+            ext = file_path.suffix.lower()
+            if ext == '.jpg' or ext == '.jpeg':
+                img_format = 'JPEG'
+            elif ext == '.png':
+                img_format = 'PNG'
+            elif ext == '.webp':
+                img_format = 'WEBP'
+            else:
+                raise ValueError(f"Unknown file format: {ext}")
+
+        # First converted to bytes, quality parameters must be specified to avoid using the default settings of PIL
+        with BytesIO() as buffer:
+            save_params = {'format': img_format}
+            if quality is not None:
+                save_params['quality'] = quality
+
+            img.save(buffer, **save_params)
+            img_bytes = buffer.getvalue()
+
+            with open(file_path, 'wb') as f:
+                f.write(img_bytes)
+
+        return file_path
 
     @staticmethod
     def compress_image(fp, force=False, quality=None, output=None, webp=False, target_size=None, size_range=None,
@@ -227,19 +284,20 @@ class ImageCompressor:
         """
         # Check if the file exists
         if Path(fp).exists():
-            original_size = Path(fp).stat().st_size / 1024
             img = Image.open(fp)
             webp_fp = Path(fp).with_suffix('.webp')
 
             quality = webp_quality
             attempts = 0
+            small_change_count = 0
+            previous_size = float('inf')
 
             while attempts < 10:
-                img.save(webp_fp, 'webp', quality=quality)
+                ImageCompressor._save_image(img, webp_fp, 'WEBP', quality)
                 current_size = webp_fp.stat().st_size / 1024
 
                 if target_size is not None:
-                    if abs(current_size - target_size) < 1.0 or current_size <= target_size:
+                    if current_size <= target_size:
                         if current_size < target_size:
                             ImageCompressor._adjust_file_size(webp_fp, target_size)
                         break
@@ -252,18 +310,26 @@ class ImageCompressor:
                 else:
                     break
 
+                size_reduction = previous_size - current_size
+                if size_reduction < 5:
+                    small_change_count += 1
+                    if small_change_count >= 3:
+                        if target_size is not None:
+                            raise ValueError(
+                                f"Unable to compress WebP to target size of {target_size}KB. Best achieved: {current_size:.2f}KB")
+                        else:
+                            raise ValueError(
+                                f"Unable to compress WebP to size range of {min_size}-{max_size}KB. Best achieved: {current_size:.2f}KB")
+                else:
+                    small_change_count = 0
+
+                previous_size = current_size
                 if current_size > (target_size if target_size else size_range[1]):
                     quality = max(10, quality - 5)
                 else:
                     quality = min(100, quality + 5)
 
                 attempts += 1
-
-            if size_range is not None:
-                min_size, max_size = size_range
-                final_size = webp_fp.stat().st_size / 1024
-                if final_size < min_size:
-                    ImageCompressor._adjust_file_size(webp_fp, min_size)
 
             # Delete the original image file
             os.remove(fp)
@@ -283,12 +349,12 @@ class ImageCompressor:
         :rtype: bool
         """
         target_size_bytes = target_size_kb * 1024
-        current_size = file_path.stat().st_size
+        current_size_bytes = file_path.stat().st_size
 
-        if current_size >= target_size_bytes:
+        if current_size_bytes >= target_size_bytes:
             return True
 
-        bytes_to_add = target_size_bytes - current_size
+        bytes_to_add = target_size_bytes - current_size_bytes
 
         with open(file_path, 'rb') as f:
             content = f.read()
@@ -336,11 +402,11 @@ class ImageCompressor:
             with Image.open(fp) as img:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_orig = Path(temp_dir) / f'temp_orig{fp.suffix}'
-                    img.save(temp_orig)
+                    ImageCompressor._save_image(img, temp_orig, 'PNG')
                     orig_size = temp_orig.stat().st_size
 
                     temp_webp = Path(temp_dir) / 'temp.webp'
-                    img.save(temp_webp, 'webp', quality=webp_quality)
+                    ImageCompressor._save_image(img, temp_webp, 'WEBP', webp_quality)
                     webp_size = temp_webp.stat().st_size
 
                     ratio = webp_size / orig_size if orig_size > 0 else 0.7
@@ -351,7 +417,7 @@ class ImageCompressor:
                     if size_range is not None:
                         min_size, max_size = size_range
                         adjusted_size_range = (
-                        int(min_size / ratio * safety_factor), int(max_size / ratio * safety_factor))
+                            int(min_size / ratio * safety_factor), int(max_size / ratio * safety_factor))
         else:
             adjusted_target_size = target_size
             adjusted_size_range = size_range
@@ -473,35 +539,9 @@ class ImageCompressor:
         """
         new_fp = optimize_output_path(fp, output, force)
 
-        adjusted_target_size = None
-        adjusted_size_range = None
-
-        if webp and (target_size is not None or size_range is not None):
-            with Image.open(fp) as img:
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_orig = Path(temp_dir) / f'temp_orig{fp.suffix}'
-                    img.save(temp_orig)
-                    orig_size = temp_orig.stat().st_size
-
-                    temp_webp = Path(temp_dir) / 'temp.webp'
-                    img.save(temp_webp, 'webp', quality=webp_quality)
-                    webp_size = temp_webp.stat().st_size
-
-                    ratio = webp_size / orig_size if orig_size > 0 else 0.7  # Default to 0.7 if division by zero
-
-                    safety_factor = 1.1
-                    if target_size is not None:
-                        adjusted_target_size = int(target_size / ratio * safety_factor)
-                    if size_range is not None:
-                        min_size, max_size = size_range
-                        adjusted_size_range = (
-                        int(min_size / ratio * safety_factor), int(max_size / ratio * safety_factor))
-        else:
-            adjusted_target_size = target_size
-            adjusted_size_range = size_range
-
-        if adjusted_size_range is not None:
-            min_size, max_size = adjusted_size_range
+        # First compress the JPEG to target size or size range
+        if size_range is not None:
+            min_size, max_size = size_range
             if min_size > max_size:
                 raise ValueError(f"Minimum size ({min_size}KB) cannot be greater than maximum size ({max_size}KB)")
 
@@ -518,8 +558,7 @@ class ImageCompressor:
                         input_jpeg_bytes = buffer.getvalue()
 
                 optimized_jpeg_bytes = mozjpeg_lossless_optimization.optimize(input_jpeg_bytes)
-                with open(new_fp, "wb") as output_jpeg_file:
-                    output_jpeg_file.write(optimized_jpeg_bytes)
+                ImageCompressor._save_image(None, new_fp, existing_bytes=optimized_jpeg_bytes)
 
                 if not new_fp.exists():
                     warnings.warn(
@@ -547,7 +586,7 @@ class ImageCompressor:
                 current_quality = max(1, current_quality - 5)
                 attempts += 1
 
-        elif adjusted_target_size is not None:
+        elif target_size is not None:
             current_quality = 80
             attempts = 0
             small_change_count = 0
@@ -561,8 +600,7 @@ class ImageCompressor:
                         input_jpeg_bytes = buffer.getvalue()
 
                 optimized_jpeg_bytes = mozjpeg_lossless_optimization.optimize(input_jpeg_bytes)
-                with open(new_fp, "wb") as output_jpeg_file:
-                    output_jpeg_file.write(optimized_jpeg_bytes)
+                ImageCompressor._save_image(None, new_fp, existing_bytes=optimized_jpeg_bytes)
 
                 if not new_fp.exists():
                     warnings.warn(
@@ -572,8 +610,8 @@ class ImageCompressor:
 
                 current_size = new_fp.stat().st_size / 1024
 
-                if current_size <= adjusted_target_size:
-                    ImageCompressor._adjust_file_size(new_fp, adjusted_target_size)
+                if current_size <= target_size:
+                    ImageCompressor._adjust_file_size(new_fp, target_size)
                     break
 
                 size_reduction = previous_size - current_size
@@ -581,7 +619,7 @@ class ImageCompressor:
                     small_change_count += 1
                     if small_change_count >= 3:
                         raise ValueError(
-                            f"Unable to compress image to target size of {adjusted_target_size}KB. Best achieved: {current_size:.2f}KB")
+                            f"Unable to compress image to target size of {target_size}KB. Best achieved: {current_size:.2f}KB")
                 else:
                     small_change_count = 0
 
@@ -599,8 +637,7 @@ class ImageCompressor:
                     input_jpeg_bytes = buffer.getvalue()
 
             optimized_jpeg_bytes = mozjpeg_lossless_optimization.optimize(input_jpeg_bytes)
-            with open(new_fp, "wb") as output_jpeg_file:
-                output_jpeg_file.write(optimized_jpeg_bytes)
+            ImageCompressor._save_image(None, new_fp, existing_bytes=optimized_jpeg_bytes)
 
             if not new_fp.exists():
                 warnings.warn(
@@ -608,7 +645,9 @@ class ImageCompressor:
                     Warning)
                 return
 
+        # If WebP conversion is requested, convert the compressed JPEG to WebP
         if webp:
+            # Pass the original target_size and size_range to WebP conversion
             ImageCompressor._convert_to_webp(new_fp, target_size, size_range, webp_quality)
 
     @staticmethod
@@ -660,7 +699,7 @@ class ImageCompressor:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_file_path = Path(
                         temp_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.{output_format.lower()}'
-                    img.save(temp_file_path)
+                    ImageCompressor._save_image(img, temp_file_path, output_format.upper(), quality)
 
                     if output_format.upper() == 'JPEG':
                         if size_range is not None:
@@ -690,76 +729,148 @@ class ImageCompressor:
                     else:
                         raise ValueError(f"Failed to generate compressed image: {final_path}")
 
-            output_buffer = BytesIO()
             if output_format.upper() == 'JPEG':
-                img.save(output_buffer, format=output_format, quality=quality, optimize=True)
-                compressed_img_bytes = output_buffer.getvalue()
-                compressed_img_bytes = mozjpeg_lossless_optimization.optimize(compressed_img_bytes)
+                with BytesIO() as output_buffer:
+                    ImageCompressor._save_image(img, Path('temp.jpg'), 'JPEG', quality)
+                    with open(Path('temp.jpg'), 'rb') as temp_file:
+                        compressed_img_bytes = temp_file.read()
+                    os.remove(Path('temp.jpg'))
 
-                if target_size is not None:
-                    with tempfile.TemporaryDirectory() as size_adjust_dir:
-                        temp_file_path = Path(size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.jpg'
-                        with open(temp_file_path, 'wb') as temp_file:
-                            temp_file.write(compressed_img_bytes)
+                    compressed_img_bytes = mozjpeg_lossless_optimization.optimize(compressed_img_bytes)
 
-                        current_size = temp_file_path.stat().st_size / 1024
+                    if target_size is not None:
+                        with tempfile.TemporaryDirectory() as size_adjust_dir:
+                            temp_file_path = Path(
+                                size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.jpg'
+                            ImageCompressor._save_image(None, temp_file_path, existing_bytes=compressed_img_bytes)
 
-                        if current_size < target_size:
-                            ImageCompressor._adjust_file_size(temp_file_path, target_size)
-                            with open(temp_file_path, 'rb') as adjusted_file:
-                                compressed_img_bytes = adjusted_file.read()
+                            current_size = temp_file_path.stat().st_size / 1024
 
-                elif size_range is not None:
-                    min_size, max_size = size_range
-                    with tempfile.TemporaryDirectory() as size_adjust_dir:
-                        temp_file_path = Path(size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.jpg'
-                        with open(temp_file_path, 'wb') as temp_file:
-                            temp_file.write(compressed_img_bytes)
+                            if current_size > target_size:
+                                current_quality = quality
+                                attempts = 0
+                                small_change_count = 0
+                                previous_size = float('inf')
 
-                        current_size = temp_file_path.stat().st_size / 1024
+                                while current_size > target_size and attempts < 10:
+                                    current_quality = max(1, current_quality - 10)
 
-                        if current_size < min_size:
-                            ImageCompressor._adjust_file_size(temp_file_path, min_size)
-                            with open(temp_file_path, 'rb') as adjusted_file:
-                                compressed_img_bytes = adjusted_file.read()
+                                    with Image.open(temp_file_path) as img:
+                                        img = img.convert("RGB")
+                                        with BytesIO() as buffer:
+                                            img.save(buffer, format="JPEG", quality=current_quality)
+                                            input_jpeg_bytes = buffer.getvalue()
 
-                if webp:
-                    with tempfile.TemporaryDirectory() as webp_temp_dir:
-                        temp_img_path = Path(webp_temp_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.jpg'
-                        with open(temp_img_path, 'wb') as temp_img_file:
-                            temp_img_file.write(compressed_img_bytes)
-
-                        webp_path = ImageCompressor._convert_to_webp(temp_img_path, target_size, size_range,
-                                                                     webp_quality)
-
-                        if webp_path and webp_path.exists():
-                            with open(webp_path, 'rb') as webp_file:
-                                compressed_img_bytes = webp_file.read()
-                        else:
-                            output_buffer = BytesIO()
-                            img = Image.open(BytesIO(compressed_img_bytes))
-                            img.save(output_buffer, format='webp', quality=webp_quality)
-                            compressed_img_bytes = output_buffer.getvalue()
-
-                            if size_range is not None:
-                                min_size, max_size = size_range
-                                with tempfile.TemporaryDirectory() as size_adjust_dir:
-                                    temp_file_path = Path(
-                                        size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.webp'
-                                    with open(temp_file_path, 'wb') as temp_file:
-                                        temp_file.write(compressed_img_bytes)
+                                    optimized_jpeg_bytes = mozjpeg_lossless_optimization.optimize(input_jpeg_bytes)
+                                    ImageCompressor._save_image(None, temp_file_path,
+                                                                existing_bytes=optimized_jpeg_bytes)
 
                                     current_size = temp_file_path.stat().st_size / 1024
 
-                                    if current_size < min_size:
-                                        ImageCompressor._adjust_file_size(temp_file_path, min_size)
-                                        with open(temp_file_path, 'rb') as adjusted_file:
-                                            compressed_img_bytes = adjusted_file.read()
+                                    size_reduction = previous_size - current_size
+                                    if size_reduction < 5:
+                                        small_change_count += 1
+                                        if small_change_count >= 3:
+                                            raise ValueError(
+                                                f"Unable to compress image to target size of {target_size}KB. Best achieved: {current_size:.2f}KB")
+                                    else:
+                                        small_change_count = 0
+
+                                    previous_size = current_size
+                                    attempts += 1
+
+                            if current_size < target_size:
+                                ImageCompressor._adjust_file_size(temp_file_path, target_size)
+                                with open(temp_file_path, 'rb') as adjusted_file:
+                                    compressed_img_bytes = adjusted_file.read()
+                            # Ensure the temporary file is read back if it was used for size adjustment
+                            elif temp_file_path.exists():  # Check if temp_file_path was actually used and exists
+                                with open(temp_file_path, 'rb') as adjusted_file:
+                                    compressed_img_bytes = adjusted_file.read()
+
+                    elif size_range is not None:
+                        min_size, max_size = size_range
+                        with tempfile.TemporaryDirectory() as size_adjust_dir:
+                            temp_file_path = Path(
+                                size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.jpg'
+                            ImageCompressor._save_image(None, temp_file_path, existing_bytes=compressed_img_bytes)
+
+                            current_size = temp_file_path.stat().st_size / 1024
+
+                            if current_size > max_size:
+                                current_quality = quality
+                                attempts = 0
+                                small_change_count = 0
+                                previous_size = float('inf')
+
+                                while current_size > max_size and attempts < 10:
+                                    current_quality = max(1, current_quality - 10)
+
+                                    with Image.open(temp_file_path) as img:
+                                        img = img.convert("RGB")
+                                        with BytesIO() as buffer:
+                                            img.save(buffer, format="JPEG", quality=current_quality)
+                                            input_jpeg_bytes = buffer.getvalue()
+
+                                    optimized_jpeg_bytes = mozjpeg_lossless_optimization.optimize(input_jpeg_bytes)
+                                    ImageCompressor._save_image(None, temp_file_path,
+                                                                existing_bytes=optimized_jpeg_bytes)
+
+                                    current_size = temp_file_path.stat().st_size / 1024
+
+                                    size_reduction = previous_size - current_size
+                                    if size_reduction < 5:
+                                        small_change_count += 1
+                                        if small_change_count >= 3:
+                                            raise ValueError(
+                                                f"Unable to compress image to size range of {min_size}-{max_size}KB. Best achieved: {current_size:.2f}KB")
+                                    else:
+                                        small_change_count = 0
+
+                                    previous_size = current_size
+                                    attempts += 1
+
+                            if current_size < min_size:
+                                ImageCompressor._adjust_file_size(temp_file_path, min_size)
+                                with open(temp_file_path, 'rb') as adjusted_file:
+                                    compressed_img_bytes = adjusted_file.read()
+                            # Ensure the temporary file is read back if it was used for size adjustment
+                            elif temp_file_path.exists():  # Check if temp_file_path was actually used and exists
+                                with open(temp_file_path, 'rb') as adjusted_file:
+                                    compressed_img_bytes = adjusted_file.read()
+
+                    # Add WebP conversion here if webp is True
+                    if webp:
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            temp_jpg_path = Path(temp_dir) / f'temp_input_for_webp_{get_uuid(str(time.time()))}.jpg'
+                            with open(temp_jpg_path, 'wb') as f_temp_jpg:
+                                f_temp_jpg.write(compressed_img_bytes)
+
+                            # Call _convert_to_webp with original target_size and size_range
+                            webp_converted_path = ImageCompressor._convert_to_webp(
+                                temp_jpg_path,
+                                target_size,  # Pass original target_size
+                                size_range,  # Pass original size_range
+                                webp_quality
+                            )
+
+                            if webp_converted_path and webp_converted_path.exists():
+                                with open(webp_converted_path, 'rb') as f_webp:
+                                    compressed_img_bytes = f_webp.read()
+                                # _convert_to_webp might have deleted temp_jpg_path, so no explicit deletion here for it
+                            else:
+                                warnings.warn(
+                                    f"Failed to convert JPEG to WebP. Original JPEG bytes will be returned.",
+                                    Warning
+                                )
+                                # compressed_img_bytes remains the JPEG bytes
+
             elif output_format.upper() == 'PNG':
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_png_file_path = Path(temp_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.png'
-                    with open(temp_png_file_path, 'wb') as temp_png_file:
-                        temp_png_file.write(image_bytes)
+
+                    ImageCompressor._save_image(None, temp_png_file_path, existing_bytes=image_bytes)
+
                     new_fp = optimize_output_path(temp_png_file_path, Path(temp_dir), False)
                     pngquant_cmd = find_pngquant_cmd()
                     if not pngquant_cmd:
@@ -778,10 +889,40 @@ class ImageCompressor:
                                 with tempfile.TemporaryDirectory() as size_adjust_dir:
                                     temp_file_path = Path(
                                         size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.png'
-                                    with open(temp_file_path, 'wb') as temp_file:
-                                        temp_file.write(compressed_img_bytes)
+                                    ImageCompressor._save_image(None, temp_file_path,
+                                                                existing_bytes=compressed_img_bytes)
 
                                     current_size = temp_file_path.stat().st_size / 1024
+
+                                    if current_size > target_size:
+                                        current_quality = quality
+                                        attempts = 0
+                                        small_change_count = 0
+                                        previous_size = float('inf')
+
+                                        while current_size > target_size and attempts < 10:
+                                            current_quality = max(1, current_quality - 10)
+
+                                            quality_command = f'--quality {current_quality}'
+                                            command = f'{pngquant_cmd} {temp_file_path} --skip-if-larger -f -o {temp_file_path} {quality_command}'
+                                            subprocess.run(command, shell=True, check=True)
+
+                                            if not temp_file_path.exists():
+                                                break
+
+                                            current_size = temp_file_path.stat().st_size / 1024
+
+                                            size_reduction = previous_size - current_size
+                                            if size_reduction < 5:
+                                                small_change_count += 1
+                                                if small_change_count >= 3:
+                                                    raise ValueError(
+                                                        f"Unable to compress image to target size of {target_size}KB. Best achieved: {current_size:.2f}KB")
+                                            else:
+                                                small_change_count = 0
+
+                                            previous_size = current_size
+                                            attempts += 1
 
                                     if current_size < target_size:
                                         ImageCompressor._adjust_file_size(temp_file_path, target_size)
@@ -793,10 +934,41 @@ class ImageCompressor:
                                 with tempfile.TemporaryDirectory() as size_adjust_dir:
                                     temp_file_path = Path(
                                         size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.png'
-                                    with open(temp_file_path, 'wb') as temp_file:
-                                        temp_file.write(compressed_img_bytes)
+
+                                    ImageCompressor._save_image(None, temp_file_path,
+                                                                existing_bytes=compressed_img_bytes)
 
                                     current_size = temp_file_path.stat().st_size / 1024
+
+                                    if current_size > max_size:
+                                        current_quality = quality
+                                        attempts = 0
+                                        small_change_count = 0
+                                        previous_size = float('inf')
+
+                                        while current_size > max_size and attempts < 10:
+                                            current_quality = max(1, current_quality - 10)
+
+                                            quality_command = f'--quality {current_quality}'
+                                            command = f'{pngquant_cmd} {temp_file_path} --skip-if-larger -f -o {temp_file_path} {quality_command}'
+                                            subprocess.run(command, shell=True, check=True)
+
+                                            if not temp_file_path.exists():
+                                                break
+
+                                            current_size = temp_file_path.stat().st_size / 1024
+
+                                            size_reduction = previous_size - current_size
+                                            if size_reduction < 5:
+                                                small_change_count += 1
+                                                if small_change_count >= 3:
+                                                    raise ValueError(
+                                                        f"Unable to compress image to size range of {min_size}-{max_size}KB. Best achieved: {current_size:.2f}KB")
+                                            else:
+                                                small_change_count = 0
+
+                                            previous_size = current_size
+                                            attempts += 1
 
                                     if current_size < min_size:
                                         ImageCompressor._adjust_file_size(temp_file_path, min_size)
@@ -811,8 +983,8 @@ class ImageCompressor:
                     if webp:
                         with tempfile.TemporaryDirectory() as webp_temp_dir:
                             temp_img_path = Path(webp_temp_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.png'
-                            with open(temp_img_path, 'wb') as temp_img_file:
-                                temp_img_file.write(compressed_img_bytes)
+
+                            ImageCompressor._save_image(None, temp_img_path, existing_bytes=compressed_img_bytes)
 
                             webp_path = ImageCompressor._convert_to_webp(temp_img_path, target_size, size_range,
                                                                          webp_quality)
@@ -821,18 +993,21 @@ class ImageCompressor:
                                 with open(webp_path, 'rb') as webp_file:
                                     compressed_img_bytes = webp_file.read()
                             else:
-                                output_buffer = BytesIO()
-                                img = Image.open(BytesIO(compressed_img_bytes))
-                                img.save(output_buffer, format='webp', quality=webp_quality)
-                                compressed_img_bytes = output_buffer.getvalue()
+                                with tempfile.TemporaryDirectory() as webp_out_dir:
+                                    temp_webp_path = Path(webp_out_dir) / 'temp.webp'
+                                    img = Image.open(BytesIO(compressed_img_bytes))
+                                    ImageCompressor._save_image(img, temp_webp_path, 'WEBP', webp_quality)
+                                    with open(temp_webp_path, 'rb') as webp_file:
+                                        compressed_img_bytes = webp_file.read()
 
                                 if size_range is not None:
                                     min_size, max_size = size_range
                                     with tempfile.TemporaryDirectory() as size_adjust_dir:
                                         temp_file_path = Path(
                                             size_adjust_dir) / f'temp_{get_uuid(f"AGPicCompress{time.time()}")}.webp'
-                                        with open(temp_file_path, 'wb') as temp_file:
-                                            temp_file.write(compressed_img_bytes)
+
+                                        ImageCompressor._save_image(None, temp_file_path,
+                                                                    existing_bytes=compressed_img_bytes)
 
                                         current_size = temp_file_path.stat().st_size / 1024
 

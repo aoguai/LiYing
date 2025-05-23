@@ -76,8 +76,35 @@ if "!photo_sheet_size!"=="" set photo_sheet_size=五寸
 set /p "compress=是否压缩图像（是/否，默认为否）: "
 if /i "!compress!"=="是" (
     set compress=--compress
+    set compress=--compress
+    set /p "use_csv_size=使用CSV文件的尺寸限制（是/否，默认为是）: "
+    if /i "!use_csv_size!"=="否" (
+        set use_csv_size=--no-use-csv-size
+        set /p "target_size=输入目标文件大小（KB）（直接回车跳过）: "
+        if "!target_size!"=="" (
+            set target_size=
+            set /p "use_size_range=是否设置文件大小范围？（是/否，默认为否）: "
+            if /i "!use_size_range!"=="是" (
+                set /p "size_range=输入文件大小范围（KB）（格式：最小值,最大值，例如：10,20）: "
+                if "!size_range!"=="" (
+                    set size_range=
+                ) else (
+                    set size_range=--size-range !size_range!
+                )
+            )
+        ) else (
+            set target_size=--target-size !target_size!
+        )
+    ) else (
+        set use_csv_size=--use-csv-size
+        set target_size=
+        set size_range=
+    )
 ) else (
     set compress=--no-compress
+    set use_csv_size=--use-csv-size
+    set target_size=
+    set size_range=
 )
 
 set /p "save_corrected=是否保存校正后的图像（是/否，默认为否）: "
@@ -116,7 +143,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM 执行Python脚本处理图像
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! & pause"
     )
 ) else (
     REM 如果是文件，直接处理该文件
@@ -125,7 +152,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
     REM 由于使用了setlocal enabledelayedexpansion，使用!variable_name!来引用变量
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! & pause"
 )
 
 pause
