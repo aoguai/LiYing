@@ -169,9 +169,11 @@ def echo_message(key, **kwargs):
               help='File size range in KB as min,max (e.g., 10,20)' if get_language() == 'en' else '文件大小范围（KB），格式为最小值,最大值（例如：10,20）')
 @click.option('-uc', '--use-csv-size/--no-use-csv-size', default=True,
               help='Whether to use file size limits from CSV' if get_language() == 'en' else '是否使用CSV中的文件大小限制')
+@click.option('-lp', '--layout-position', type=click.IntRange(0, 8), default=4,
+              help='Layout position (0-8): 0=top-left, 1=top, 2=top-right, 3=middle-left, 4=center, 5=middle-right, 6=bottom-left, 7=bottom, 8=bottom-right' if get_language() == 'en' else '布局位置(0-8)：0=左上，1=上，2=右上，3=左中，4=中，5=右中，6=左下，7=下，8=右下')
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
         photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
-        sheet_cols, rotate, resize, save_resized, add_crop_lines, target_size, size_range, use_csv_size):
+        sheet_cols, rotate, resize, save_resized, add_crop_lines, target_size, size_range, use_csv_size, layout_position):
     # Parameter validation
     if target_size is not None and size_range is not None:
         warnings.warn("Both target_size and size_range are provided. Using target_size and ignoring size_range.")
@@ -220,7 +222,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
     sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
     sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
     generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines)
+    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position)
     sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]
     generator.save_photo_sheet(photo_sheet_cv, sheet_path)
     echo_message('sheet_saved', path=sheet_path)

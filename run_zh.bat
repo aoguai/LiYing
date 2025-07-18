@@ -163,6 +163,10 @@ if /i "!add_crop_lines!"=="否" (
     set add_crop_lines=--add-crop-lines
 )
 
+set /p "layout_position=输入布局位置（0-8，默认为 4，0=左上角，1=顶部，2=右上角，3=左中部，4=中间，5=右中部，6=左下角，7=底部，8=右下角）："
+if "!layout_position!"=="" set layout_position=4
+set layout_position=--layout-position !layout_position!
+
 REM 检查拖放的项目是文件还是目录
 if exist "%INPUT_PATH%\" (
     REM 如果是目录，遍历其中所有的jpg和png文件
@@ -172,7 +176,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM 执行Python脚本处理图像
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
     )
 ) else (
     REM 如果是文件，直接处理该文件
@@ -181,7 +185,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
     REM 由于使用了setlocal enabledelayedexpansion，使用!variable_name!来引用变量
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
 )
 
 pause

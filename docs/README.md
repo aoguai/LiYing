@@ -169,6 +169,9 @@ Options:
   -szr, --size-range SIZE_RANGE   文件大小范围（KB），格式为最小值,最大值（例如：10,20）
   -uc, --use-csv-size / --no-use-csv-size
                                   是否使用CSV中的文件大小限制
+  -lp, --layout-position INTEGER RANGE
+                                  布局位置(0-8)：0=左上，1=上，2=右上，3=左中，4=中，5=右中，6=左下，7
+                                  =下，8=右下  [0<=x<=8]
   --help                          Show this message and exit.
 ```
 

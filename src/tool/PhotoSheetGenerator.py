@@ -19,7 +19,21 @@ class PhotoSheetGenerator:
         cv2_image_rgb = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)
         return cv2_image_rgb
 
-    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True):
+    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True, layout_position=4):
+        """
+        Generate a photo sheet with the specified layout.
+        
+        :param one_inch_photo_cv2: Input photo in OpenCV format
+        :param rows: Number of rows in the layout
+        :param cols: Number of columns in the layout
+        :param rotate: Whether to rotate the photo 90 degrees
+        :param add_crop_lines: Whether to add crop lines
+        :param layout_position: Position of the layout (0-8):
+                              0: Top-Left, 1: Top, 2: Top-Right
+                              3: Middle-Left, 4: Center, 5: Middle-Right
+                              6: Bottom-Left, 7: Bottom, 8: Bottom-Right
+        :return: Generated photo sheet in OpenCV format
+        """
         one_inch_height, one_inch_width = one_inch_photo_cv2.shape[:2]
 
         # Convert OpenCV image data to Pillow image
@@ -33,15 +47,32 @@ class PhotoSheetGenerator:
         # Create photo sheet (white background)
         five_inch_photo = Image.new('RGB', self.five_inch_size, 'white')
 
-        # Calculate positions for the photos on the sheet
+        # Calculate total dimensions
         total_width = cols * one_inch_width
         total_height = rows * one_inch_height
 
         if total_width > self.five_inch_size[0] or total_height > self.five_inch_size[1]:
             raise ValueError("The specified layout exceeds the size of the photo sheet")
 
-        start_x = (self.five_inch_size[0] - total_width) // 2
-        start_y = (self.five_inch_size[1] - total_height) // 2
+        # Calculate start positions based on layout_position
+        if layout_position < 0 or layout_position > 8:
+            layout_position = 4  # Default to center if invalid position
+
+        # Calculate horizontal position
+        if layout_position in [0, 3, 6]:  # Left
+            start_x = 0
+        elif layout_position in [2, 5, 8]:  # Right
+            start_x = self.five_inch_size[0] - total_width
+        else:  # Center
+            start_x = (self.five_inch_size[0] - total_width) // 2
+
+        # Calculate vertical position
+        if layout_position in [0, 1, 2]:  # Top
+            start_y = 0
+        elif layout_position in [6, 7, 8]:  # Bottom
+            start_y = self.five_inch_size[1] - total_height
+        else:  # Middle
+            start_y = (self.five_inch_size[1] - total_height) // 2
 
         # Arrange photos on the sheet in an n*m layout
         for i in range(rows):
@@ -56,8 +87,9 @@ class PhotoSheetGenerator:
             
             # Draw outer rectangle
             draw.rectangle([start_x, start_y, start_x + total_width, start_y + total_height], outline="black")
+            # Necessary auxiliary lines, used to facilitate alignment during cutting
             draw.rectangle([start_x, start_y, self.five_inch_size[0], self.five_inch_size[1]], outline="black")
-            
+
             # Draw inner lines
             for i in range(1, rows):
                 y = start_y + i * one_inch_height

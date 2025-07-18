@@ -56,5 +56,15 @@
     "size_params_conflict": "Both target size and size range provided. Using target size.",
     "size_input_option": "Size Input Method",
     "target_size_radio": "Target Size",
-    "size_range_radio": "Size Range"
+    "size_range_radio": "Size Range",
+    "layout_position": "Layout Position",
+    "layout_position_0": "Top-Left",
+    "layout_position_1": "Top",
+    "layout_position_2": "Top-Right",
+    "layout_position_3": "Middle-Left",
+    "layout_position_4": "Center",
+    "layout_position_5": "Middle-Right",
+    "layout_position_6": "Bottom-Left",
+    "layout_position_7": "Bottom",
+    "layout_position_8": "Bottom-Right"
 }

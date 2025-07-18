@@ -176,8 +176,12 @@ Options:
                                   10,20)
   -uc, --use-csv-size / --no-use-csv-size
                                   Whether to use file size limits from CSV
+  -lp, --layout-position INTEGER RANGE
+                                  Layout position (0-8): 0=top-left, 1=top,
+                                  2=top-right, 3=middle-left, 4=center,
+                                  5=middle-right, 6=bottom-left, 7=bottom,
+                                  8=bottom-right  [0<=x<=8]
   --help                          Show this message and exit.
-
 ```
 
 ### Configuration Files

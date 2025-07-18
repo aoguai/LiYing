@@ -83,7 +83,7 @@ def parse_color(color_string):
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
@@ -106,7 +106,7 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
     sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
     sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
     generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines)
+    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position)
 
     return {
         'final_image': photo_sheet_cv,
@@ -190,6 +190,20 @@ def create_demo(initial_language):
                             label=t('photo_sheet_size', initial_language),
                             value=sheet_size_choices[0] if sheet_size_choices else None
                         )
+                        
+                        layout_position_choices = [
+                            (t('layout_position_0', initial_language), 0),
+                            (t('layout_position_1', initial_language), 1),
+                            (t('layout_position_2', initial_language), 2),
+                            (t('layout_position_3', initial_language), 3),
+                            (t('layout_position_4', initial_language), 4),
+                            (t('layout_position_5', initial_language), 5),
+                            (t('layout_position_6', initial_language), 6),
+                            (t('layout_position_7', initial_language), 7),
+                            (t('layout_position_8', initial_language), 8)
+                        ]
+                        layout_position = gr.Dropdown(choices=layout_position_choices, value=4, label=t('layout_position', initial_language))
+
                         with gr.Row():
                             preset_color = gr.Dropdown(choices=color_choices, label=t('preset_color', initial_language), value=t('custom_color', initial_language))
                             background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
@@ -289,13 +303,13 @@ def create_demo(initial_language):
         def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                                         photo_type, photo_sheet_size, background_color, compress, change_background, 
                                         rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, 
-                                        target_size, size_range_min, size_range_max, use_csv_size):
+                                        target_size, size_range_min, size_range_max, use_csv_size, layout_position):
             nonlocal current_file_format, current_resolution
             
             result = process_and_display(
                 input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                 photo_type, photo_sheet_size, background_color, compress, change_background, 
-                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines
+                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position
             )
             
             if result:
@@ -398,6 +412,18 @@ def create_demo(initial_language):
             new_sheet_size_choices = list(new_sheet_size_configs.keys())
             new_color_choices = [t('custom_color', lang)] + list(color_configs.keys())
 
+            new_layout_position_choices = [
+                (t('layout_position_0', lang), 0),
+                (t('layout_position_1', lang), 1),
+                (t('layout_position_2', lang), 2),
+                (t('layout_position_3', lang), 3),
+                (t('layout_position_4', lang), 4),
+                (t('layout_position_5', lang), 5),
+                (t('layout_position_6', lang), 6),
+                (t('layout_position_7', lang), 7),
+                (t('layout_position_8', lang), 8)
+            ]
+
             # The dictionary of updates to be returned
             updates = {
                 title: gr.update(value=f"# {t('title', lang)}"),
@@ -463,6 +489,7 @@ def create_demo(initial_language):
                     label=t('size_input_option', lang),
                     choices=[(t('target_size_radio', lang), "target"), (t('size_range_radio', lang), "range")]
                 ),
+                layout_position: gr.update(choices=new_layout_position_choices, value=4, label=t('layout_position', lang)),
             }
             # Add the language state update
             updates[language] = lang
@@ -513,7 +540,7 @@ def create_demo(initial_language):
 
         def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, 
                                 photo_sheet_size, background_color, compress, change_background, rotate, resize, 
-                                sheet_rows, sheet_cols, layout_only, add_crop_lines):
+                                sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position):
             """Process and display the image with given parameters."""
             rgb_list = parse_color(background_color)
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -536,6 +563,7 @@ def create_demo(initial_language):
                 sheet_rows=sheet_rows,
                 sheet_cols=sheet_cols,
                 add_crop_lines=add_crop_lines,
+                layout_position=layout_position,
             )
 
             os.remove(temp_image_path)
@@ -659,7 +687,7 @@ def create_demo(initial_language):
                     size_config_tab, color_config_tab, result_tab, corrected_image_tab,
                     size_df, color_df, add_size_btn, update_size_btn,
                     add_color_btn, update_color_btn, config_notification,
-                    size_option_type, language
+                    size_option_type, language, layout_position
                     ]
         )
 
@@ -704,7 +732,7 @@ def create_demo(initial_language):
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
                     photo_type, photo_sheet_size, background_color, compress, change_background, 
                     rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size],
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position],
             outputs=[output_image, corrected_output]
         )
         

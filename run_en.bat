@@ -162,6 +162,10 @@ if /i "!add_crop_lines!"=="no" || /i "!add_crop_lines!"=="n" (
     set add_crop_lines=--add-crop-lines
 )
 
+set /p "layout_position=Enter layout position (0-8, default is 4,  0=top-left, 1=top, 2=top-right, 3=middle-left, 4=center, 5=middle-right, 6=bottom-left, 7=bottom, 8=bottom-right):  "
+if "!layout_position!"=="" set layout_position=4
+set layout_position=--layout-position !layout_position!
+
 REM Check if the dropped item is a file or a directory
 if exist "%INPUT_PATH%\" (
     REM If it's a directory, iterate through all jpg and png files in it
@@ -171,7 +175,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
 
         REM Execute Python script to process the image
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
     )
 ) else (
     REM If it's a file, process the file directly
@@ -180,7 +184,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
 
     REM Due to setlocal enabledelayedexpansion, use !variable_name! to reference variables
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
 )
 
 pause
