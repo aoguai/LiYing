@@ -126,7 +126,7 @@ class YOLOv8Detector:
         """
         result, original_img = self.detect(img_path)
         boxes = result['boxes']
-        scores = result['scores']
+        # scores = result['scores']
         kpts = result['kpts']
 
         # Only handle cases where exactly one person is detected

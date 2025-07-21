@@ -178,7 +178,7 @@ def create_demo(initial_language):
                     label=t('language', initial_language)
                 )
 
-                with gr.Tabs() as tabs:
+                with gr.Tabs():
                     with gr.TabItem(t('key_param', initial_language)) as key_param_tab:
                         photo_type = gr.Dropdown(
                             choices=photo_size_choices,
@@ -249,7 +249,7 @@ def create_demo(initial_language):
                         confirm_advanced_settings = gr.Button(t('confirm_settings', initial_language))
 
                     with gr.TabItem(t('config_management', initial_language)) as config_management_tab:
-                        with gr.Tabs() as config_tabs:
+                        with gr.Tabs():
                             with gr.TabItem(t('size_config', initial_language)) as size_config_tab:
                                 size_df = gr.Dataframe(
                                     value=pd.DataFrame(
@@ -287,7 +287,7 @@ def create_demo(initial_language):
                 process_btn = gr.Button(t('process_btn', initial_language))
 
             with gr.Column(scale=1):
-                with gr.Tabs() as result_tabs:
+                with gr.Tabs():
                     with gr.TabItem(t('result', initial_language)) as result_tab:
                         output_image = gr.Image(label=t('final_image', initial_language), height=800)
                         with gr.Row():
@@ -300,10 +300,58 @@ def create_demo(initial_language):
                             save_corrected_path = gr.Textbox(label=t('save_path', initial_language), value=SAVE_IMG_DIR)
                 notification = gr.Textbox(label=t('notification', initial_language))
 
-        def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
+                                photo_sheet_size, background_color, compress, change_background, rotate, resize,
+                                sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position):
+            """Process and display the image with given parameters."""
+            # Update the configuration file path of ConfigManager
+            config_manager.size_file = size_config
+            config_manager.color_file = color_config
+            config_manager.load_configs()
+            update_configs()
+
+            rgb_list = parse_color(background_color)
+            image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            temp_image_path = "temp_input_image.jpg"
+            cv2.imwrite(temp_image_path, image_bgr)
+
+            result = process_image(
+                temp_image_path,
+                yolov8_path,
+                yunet_path,
+                rmbg_path,
+                photo_requirements,
+                photo_type=photo_type,
+                photo_sheet_size=photo_sheet_size,
+                rgb_list=rgb_list,
+                compress=compress,
+                change_background=change_background and not layout_only,
+                rotate=rotate,
+                resize=resize,
+                sheet_rows=sheet_rows,
+                sheet_cols=sheet_cols,
+                add_crop_lines=add_crop_lines,
+                layout_position=layout_position,
+            )
+
+            os.remove(temp_image_path)
+
+            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+            file_format = sheet_info.get('file_format', 'png').lower()
+            if file_format == 'jpg':
+                file_format = 'jpeg'
+            resolution = sheet_info.get('resolution', 300)
+
+            final_image_rgb = cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB)
+            corrected_image_rgb = cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB)
+
+            return final_image_rgb, corrected_image_rgb, file_format, resolution
+
+        def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                         photo_type, photo_sheet_size, background_color, compress, change_background, 
                                         rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, 
                                         target_size, size_range_min, size_range_max, use_csv_size, layout_position):
+            """Wrapper function for process_and_display that handles additional parameters."""
             nonlocal current_file_format, current_resolution
             
             result = process_and_display(
@@ -425,74 +473,69 @@ def create_demo(initial_language):
             ]
 
             # The dictionary of updates to be returned
-            updates = {
-                title: gr.update(value=f"# {t('title', lang)}"),
-                input_image: gr.update(label=t('upload_photo', lang)),
-                lang_dropdown: gr.update(label=t('language', lang)),
-                photo_type: gr.update(choices=new_photo_size_choices, label=t('photo_type', lang), value=new_photo_size_choices[0] if new_photo_size_choices else None),
-                photo_sheet_size: gr.update(choices=new_sheet_size_choices, label=t('photo_sheet_size', lang), value=new_sheet_size_choices[0] if new_sheet_size_choices else None),
-                preset_color: gr.update(choices=new_color_choices, label=t('preset_color', lang)),
-                background_color: gr.update(label=t('background_color', lang)),
-                layout_only: gr.update(label=t('layout_only', lang)),
-                sheet_rows: gr.update(label=t('sheet_rows', lang)),
-                sheet_cols: gr.update(label=t('sheet_cols', lang)),
-                yolov8_path: gr.update(label=t('yolov8_path', lang)),
-                yunet_path: gr.update(label=t('yunet_path', lang)),
-                rmbg_path: gr.update(label=t('rmbg_path', lang)),
-                size_config: gr.update(label=t('size_config', lang), value=DEFAULT_SIZE_CONFIG.format(lang)),
-                color_config: gr.update(label=t('color_config', lang), value=DEFAULT_COLOR_CONFIG.format(lang)),
-                compress: gr.update(label=t('compress', lang)),
-                change_background: gr.update(label=t('change_background', lang)),
-                rotate: gr.update(label=t('rotate', lang)),
-                resize: gr.update(label=t('resize', lang)),
-                add_crop_lines: gr.update(label=t('add_crop_lines', lang)),
-                use_csv_size: gr.update(label=t('use_csv_size', lang)),
-                target_size: gr.update(label=t('target_size', lang)),
-                size_range_min: gr.update(label=t('size_range_min', lang)),
-                size_range_max: gr.update(label=t('size_range_max', lang)),
-                process_btn: gr.update(value=t('process_btn', lang)),
-                output_image: gr.update(label=t('final_image', lang)),
-                corrected_output: gr.update(label=t('corrected_image', lang)),
-                save_final_btn: gr.update(value=t('save_image', lang)),
-                save_final_path: gr.update(label=t('save_path', lang)),
-                save_corrected_btn: gr.update(value=t('save_corrected', lang)),
-                save_corrected_path: gr.update(label=t('save_path', lang)),
-                notification: gr.update(label=t('notification', lang)),
-                key_param_tab: gr.update(label=t('key_param', lang)),
-                advanced_settings_tab: gr.update(label=t('advanced_settings', lang)),
-                config_management_tab: gr.update(label=t('config_management', lang)),
-                size_config_tab: gr.update(label=t('size_config', lang)),
-                color_config_tab: gr.update(label=t('color_config', lang)),
-                confirm_advanced_settings: gr.update(value=t('confirm_settings', lang)),
-                result_tab: gr.update(label=t('result', lang)),
-                corrected_image_tab: gr.update(label=t('corrected_image', lang)),
-                size_df: gr.update(
+            updates = {title: gr.update(value=f"# {t('title', lang)}"),
+                       input_image: gr.update(label=t('upload_photo', lang)),
+                       lang_dropdown: gr.update(label=t('language', lang)),
+                       photo_type: gr.update(choices=new_photo_size_choices, label=t('photo_type', lang),
+                                             value=new_photo_size_choices[0] if new_photo_size_choices else None),
+                       photo_sheet_size: gr.update(choices=new_sheet_size_choices, label=t('photo_sheet_size', lang),
+                                                   value=new_sheet_size_choices[0] if new_sheet_size_choices else None),
+                       preset_color: gr.update(choices=new_color_choices, label=t('preset_color', lang)),
+                       background_color: gr.update(label=t('background_color', lang)),
+                       layout_only: gr.update(label=t('layout_only', lang)),
+                       sheet_rows: gr.update(label=t('sheet_rows', lang)),
+                       sheet_cols: gr.update(label=t('sheet_cols', lang)),
+                       yolov8_path: gr.update(label=t('yolov8_path', lang)),
+                       yunet_path: gr.update(label=t('yunet_path', lang)),
+                       rmbg_path: gr.update(label=t('rmbg_path', lang)),
+                       size_config: gr.update(label=t('size_config', lang), value=DEFAULT_SIZE_CONFIG.format(lang)),
+                       color_config: gr.update(label=t('color_config', lang), value=DEFAULT_COLOR_CONFIG.format(lang)),
+                       compress: gr.update(label=t('compress', lang)),
+                       change_background: gr.update(label=t('change_background', lang)),
+                       rotate: gr.update(label=t('rotate', lang)), resize: gr.update(label=t('resize', lang)),
+                       add_crop_lines: gr.update(label=t('add_crop_lines', lang)),
+                       use_csv_size: gr.update(label=t('use_csv_size', lang)),
+                       target_size: gr.update(label=t('target_size', lang)),
+                       size_range_min: gr.update(label=t('size_range_min', lang)),
+                       size_range_max: gr.update(label=t('size_range_max', lang)),
+                       process_btn: gr.update(value=t('process_btn', lang)),
+                       output_image: gr.update(label=t('final_image', lang)),
+                       corrected_output: gr.update(label=t('corrected_image', lang)),
+                       save_final_btn: gr.update(value=t('save_image', lang)),
+                       save_final_path: gr.update(label=t('save_path', lang)),
+                       save_corrected_btn: gr.update(value=t('save_corrected', lang)),
+                       save_corrected_path: gr.update(label=t('save_path', lang)),
+                       notification: gr.update(label=t('notification', lang)),
+                       key_param_tab: gr.update(label=t('key_param', lang)),
+                       advanced_settings_tab: gr.update(label=t('advanced_settings', lang)),
+                       config_management_tab: gr.update(label=t('config_management', lang)),
+                       size_config_tab: gr.update(label=t('size_config', lang)),
+                       color_config_tab: gr.update(label=t('color_config', lang)),
+                       confirm_advanced_settings: gr.update(value=t('confirm_settings', lang)),
+                       result_tab: gr.update(label=t('result', lang)),
+                       corrected_image_tab: gr.update(label=t('corrected_image', lang)), size_df: gr.update(
                     value=pd.DataFrame(
                         [[name] + list(config.values()) for name, config in config_manager.size_config.items()],
-                        columns=['Name'] + (list(next(iter(config_manager.size_config.values())).keys()) if config_manager.size_config else [])
+                        columns=['Name'] + (list(next(
+                            iter(config_manager.size_config.values())).keys()) if config_manager.size_config else [])
                     ),
                     label=t('size_config_table', lang)
-                ),
-                color_df: gr.update(
+                ), color_df: gr.update(
                     value=pd.DataFrame(
                         [[name] + list(config.values()) for name, config in config_manager.color_config.items()],
                         columns=['Name', 'R', 'G', 'B', 'Notes']
                     ),
                     label=t('color_config_table', lang)
-                ),
-                add_size_btn: gr.update(value=t('add_size', lang)),
-                update_size_btn: gr.update(value=t('save_size', lang)),
-                add_color_btn: gr.update(value=t('add_color', lang)),
-                update_color_btn: gr.update(value=t('save_color', lang)),
-                config_notification: gr.update(label=t('config_notification', lang)),
-                size_option_type: gr.update(
-                    label=t('size_input_option', lang),
-                    choices=[(t('target_size_radio', lang), "target"), (t('size_range_radio', lang), "range")]
-                ),
-                layout_position: gr.update(choices=new_layout_position_choices, value=4, label=t('layout_position', lang)),
-            }
-            # Add the language state update
-            updates[language] = lang
+                ), add_size_btn: gr.update(value=t('add_size', lang)),
+                       update_size_btn: gr.update(value=t('save_size', lang)),
+                       add_color_btn: gr.update(value=t('add_color', lang)),
+                       update_color_btn: gr.update(value=t('save_color', lang)),
+                       config_notification: gr.update(label=t('config_notification', lang)),
+                       size_option_type: gr.update(
+                           label=t('size_input_option', lang),
+                           choices=[(t('target_size_radio', lang), "target"), (t('size_range_radio', lang), "range")]
+                       ), layout_position: gr.update(choices=new_layout_position_choices, value=4,
+                                                     label=t('layout_position', lang)), language: lang}
             return updates
 
         def confirm_advanced_settings_fn(yolov8_path, yunet_path, rmbg_path, size_config, color_config):
@@ -535,50 +578,16 @@ def create_demo(initial_language):
             if color_change_source["source"] == "preset":
                 color_change_source["source"] = "custom"
                 return gr.update()
+            
+            # Check if the currently selected color matches any preset color
+            hex_color = color.upper() if color else "#FFFFFF"
+            for preset_name, preset_color in color_configs.items():
+                preset_hex = f"#{preset_color['R']:02x}{preset_color['G']:02x}{preset_color['B']:02x}".upper()
+                if hex_color == preset_hex:
+                    return gr.update(value=preset_name)
+            
             custom_color = t('custom_color', lang)
             return gr.update(value=custom_color)
-
-        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type, 
-                                photo_sheet_size, background_color, compress, change_background, rotate, resize, 
-                                sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position):
-            """Process and display the image with given parameters."""
-            rgb_list = parse_color(background_color)
-            image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            temp_image_path = "temp_input_image.jpg"
-            cv2.imwrite(temp_image_path, image_bgr)
-
-            result = process_image(
-                temp_image_path,
-                yolov8_path,
-                yunet_path,
-                rmbg_path,
-                photo_requirements,
-                photo_type=photo_type,
-                photo_sheet_size=photo_sheet_size,
-                rgb_list=rgb_list,
-                compress=compress,
-                change_background=change_background and not layout_only,
-                rotate=rotate,
-                resize=resize,
-                sheet_rows=sheet_rows,
-                sheet_cols=sheet_cols,
-                add_crop_lines=add_crop_lines,
-                layout_position=layout_position,
-            )
-
-            os.remove(temp_image_path)
-            
-            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
-            file_format = sheet_info.get('file_format', 'png').lower()
-            if file_format == 'jpg':
-                file_format = 'jpeg'
-            resolution = sheet_info.get('resolution', 300)
-            
-            final_image_rgb = cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB)
-            corrected_image_rgb = cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB)
-
-            return final_image_rgb, corrected_image_rgb, file_format, resolution
-
 
         def add_size_config(df):
             """Add a new empty row to the size configuration table."""

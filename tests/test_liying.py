@@ -1,10 +1,9 @@
-import unittest
+import json
 import os
 import sys
-import cv2
-import numpy as np
-import json
+import unittest
 import warnings
+
 from PIL import Image
 
 # Add project root directory to Python path

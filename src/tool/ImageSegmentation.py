@@ -15,7 +15,7 @@ def rgb_to_rgba(rgb):
     alpha = 255
 
     # Return RGBA values
-    return (red, green, blue, alpha)
+    return red, green, blue, alpha
 
 
 class ImageSegmentation:

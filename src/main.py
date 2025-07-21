@@ -61,7 +61,7 @@ class SizeRangeType(click.ParamType):
                     self.fail(f'Size range values must be greater than 0, got min_size={min_size}, max_size={max_size}')
                 if min_size >= max_size:
                     self.fail(f'Minimum size must be less than maximum size, got min_size={min_size}, max_size={max_size}')
-                return (min_size, max_size)
+                return min_size, max_size
             except ValueError:
                 self.fail(f'{value} is not a valid size range format. Expected format: MIN_SIZE,MAX_SIZE.')
         return None
