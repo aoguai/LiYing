@@ -762,11 +762,17 @@ def create_demo(initial_language):
     
     return demo
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LiYing Photo Processing System")
-    parser.add_argument("--lang", type=str, choices=['en', 'zh'], default=get_language(), help="Specify the language (en/zh)")
+    parser.add_argument("--lang", type=str, choices=['en', 'zh'], default=get_language(),
+                        help="Specify the language (en/zh)")
+    parser.add_argument("--server_name", type=str, default="127.0.0.1")
+    parser.add_argument("--server_port", type=int, default=7860)
     args = parser.parse_args()
 
     initial_language = args.lang
     demo = create_demo(initial_language)
-    demo.launch(share=False, server_name="127.0.0.1", server_port=7860)
+
+    print(f"Starting Gradio server on {args.server_name}:{args.server_port}")
+    demo.launch(share=False, server_name=args.server_name, server_port=args.server_port)

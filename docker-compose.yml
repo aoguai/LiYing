@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  liying-webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: liying/webui:latest
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./src/model:/app/src/model
+      - ./output:/app/output

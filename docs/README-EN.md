@@ -17,7 +17,7 @@
 
 <br>
 
-## Project Introduction
+## 🧭 Project Introduction
 
 LiYing can automatically identify human bodies and faces, correct angles, change background colors, crop passport photos to any size, and automatically arrange them.
 
@@ -65,7 +65,7 @@ run_webui.bat
 # Open your browser and visit 127.0.0.1:7860
 ```
 
-### Prerequisites
+### 🛠 Prerequisites
 
 1. **Dependencies**
    - LiYing depends on AGPicCompress
@@ -81,7 +81,7 @@ run_webui.bat
    - Windows users need to install the latest [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
    - If you are using Windows, your minimum version should be Windows 7 SP1 or higher.
 
-### Building from Source
+### 🧪 Building from Source
 
 1. Clone the project:
 
@@ -93,7 +93,7 @@ pip install -r requirements.txt # Install Python helpers' dependencies
 
 **Note: If you are using Windows 7, ensure you have at least Windows 7 SP1 and `onnxruntime==1.14.0, orjson==3.10.7, gradio==4.44.1`.**
 
-### Downloading the Required Models
+### 📦 Downloading the Required Models
 
 Download the models used by the project and place them in `LiYing/src/model`, or specify the model paths in the command line.
 
@@ -113,7 +113,7 @@ We also provide pre-converted ONNX models that you can download and use directly
 | Baidu Netdisk  | [Download Link (Extraction Code: ahr9)](https://pan.baidu.com/s/1QhzW53vCbhkIzvrncRqJow?pwd=ahr9) |
 | GitHub Releases | [Download Link](https://github.com/aoguai/LiYing/releases/latest) |
 
-### Running
+### 🚀 Running
 
 View CIL help:
 ```shell
@@ -135,7 +135,7 @@ cd LiYing/src/webui
 python app.py
 ```
 
-### CLI Parameters and Help
+### 🧾 CLI Parameters and Help
 
 ```shell
 python main.py --help
@@ -184,13 +184,59 @@ Options:
   --help                          Show this message and exit.
 ```
 
-### Configuration Files
+### 🗂 Configuration Files
 
 In this version, the `data` directory contains standard ID photo configuration files (`size_XX.csv`) and commonly used color configurations (`color_XX.csv`). You can modify, add, or remove configurations based on the provided CSV template format.
 
 <br>
 
-## Changelog
+### 🐳 Docker Deployment
+
+---
+
+#### ️1. Build the Image
+
+##### Build with docker-compose
+
+Run the following command in the project root directory:
+
+```bash
+docker compose build
+````
+
+##### Manually build the image
+
+Run the following command in the project root directory:
+
+```bash
+docker build -t liying/webui:latest .
+```
+
+---
+
+### 2. Start the Service
+
+Start the Gradio Web UI service with the following command:
+
+```bash
+docker compose up -d
+```
+
+Once started, open your browser and visit:
+
+```
+http://127.0.0.1:7860
+```
+
+---
+
+If you encounter any issues, please first verify that at least one model file is placed in `src/model/` and ensure the port is not already in use.
+
+For more details or advanced configuration, check the [`Dockerfile`](./Dockerfile) and [`docker-compose.yml`](./docker-compose.yml).
+
+<br>
+
+## 🧱 Changelog
 
 **Note: This version includes changes to CIL parameters. Please carefully read the latest CIL help documentation to avoid issues.**
 
@@ -222,7 +268,7 @@ In this version, the `data` directory contains standard ID photo configuration f
 
 <br>
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 The project was created to help my parents complete their work more easily. I would like to thank my parents for their support.
 
@@ -246,19 +292,19 @@ It depends on:
 
 <br>
 
-## Contribution
+## 🤝 Contribution
 
 LiYing is an open-source project, and community participation is highly welcomed. To contribute to this project, please follow the [Contribution Guide](./CONTRIBUTING.md).
 
 <br>
 
-## License Notice
+## 📄 License Notice
 
 [LiYing](https://github.com/aoguai/LiYing) is open-sourced under the AGPL-3.0 license. For details, please refer to the [LICENSE](../LICENSE) file.
 
 <br>
 
-## Sponsors
+## 💖 Sponsors
 
 If this project is helpful to you, feel free to give any appreciation, it helps me a lot, thank you for your support!
 
@@ -270,7 +316,7 @@ USDT(TRON):TWFDp8aZMWZHPXjBodyhfPeK8LUyrWe9mi
 
 <br>
 
-## Star History
+## ⭐ Star History
 
 <a href="https://star-history.com/#aoguai/LiYing&Timeline">
   <picture>
