@@ -167,6 +167,10 @@ set /p "layout_position=ÊäÈë²¼¾ÖÎ»ÖÃ£¨0-8£¬Ä¬ÈÏÎª 4£¬0=×óÉÏ½Ç£¬1=¶¥²¿£¬2=ÓÒÉÏ½Ç£
 if "!layout_position!"=="" set layout_position=4
 set layout_position=--layout-position !layout_position!
 
+set /p "photos_spacing=ÇëÊäÈëÕÕÆ¬Ö®¼äµÄ¼ä¾à (Ä¬ÈÏÎª 0£¬µ¥Î»£ºÏñËØ): "
+if "!photos_spacing!"=="" set photos_spacing=0
+set photos_spacing=--photos-spacing !photos_spacing!
+
 REM ¼ì²éÍÏ·ÅµÄÏîÄ¿ÊÇÎÄ¼ş»¹ÊÇÄ¿Â¼
 if exist "%INPUT_PATH%\" (
     REM Èç¹ûÊÇÄ¿Â¼£¬±éÀúÆäÖĞËùÓĞµÄjpgºÍpngÎÄ¼ş
@@ -176,7 +180,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
         REM Ö´ĞĞPython½Å±¾´¦ÀíÍ¼Ïñ
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! & pause"
     )
 ) else (
     REM Èç¹ûÊÇÎÄ¼ş£¬Ö±½Ó´¦Àí¸ÃÎÄ¼ş
@@ -185,7 +189,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
     REM ÓÉÓÚÊ¹ÓÃÁËsetlocal enabledelayedexpansion£¬Ê¹ÓÃ!variable_name!À´ÒıÓÃ±äÁ¿
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! & pause"
 )
 
 pause

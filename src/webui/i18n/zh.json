@@ -66,5 +66,6 @@
     "layout_position_5": "右中",
     "layout_position_6": "左下",
     "layout_position_7": "下",
-    "layout_position_8": "右下"
+    "layout_position_8": "右下",
+    "photos_spacing": "照片间距（像素）"
 }

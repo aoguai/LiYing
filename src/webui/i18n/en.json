@@ -66,5 +66,6 @@
     "layout_position_5": "Middle-Right",
     "layout_position_6": "Bottom-Left",
     "layout_position_7": "Bottom",
-    "layout_position_8": "Bottom-Right"
+    "layout_position_8": "Bottom-Right",
+    "photos_spacing": "Photos Spacing (pixels)"
 }

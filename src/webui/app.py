@@ -83,7 +83,7 @@ def parse_color(color_string):
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
     return [255, 255, 255]
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
@@ -106,7 +106,7 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
     sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
     sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
     generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position)
+    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
 
     return {
         'final_image': photo_sheet_cv,
@@ -210,6 +210,7 @@ def create_demo(initial_language):
                         layout_only = gr.Checkbox(label=t('layout_only', initial_language), value=False)
                         sheet_rows = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_rows', initial_language))
                         sheet_cols = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_cols', initial_language))
+                        photos_spacing = gr.Slider(minimum=0, maximum=100, step=1, value=0, label=t('photos_spacing', initial_language))
                     
                     with gr.TabItem(t('advanced_settings', initial_language)) as advanced_settings_tab:
                         yolov8_path = gr.Textbox(label=t('yolov8_path', initial_language), value=DEFAULT_YOLOV8_PATH)
@@ -301,8 +302,8 @@ def create_demo(initial_language):
                 notification = gr.Textbox(label=t('notification', initial_language))
 
         def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
-                                photo_sheet_size, background_color, compress, change_background, rotate, resize,
-                                sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position):
+                                        photo_sheet_size, background_color, compress, change_background, rotate, resize,
+                                        sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing):
             """Process and display the image with given parameters."""
             # Update the configuration file path of ConfigManager
             config_manager.size_file = size_config
@@ -332,6 +333,7 @@ def create_demo(initial_language):
                 sheet_cols=sheet_cols,
                 add_crop_lines=add_crop_lines,
                 layout_position=layout_position,
+                photos_spacing=photos_spacing
             )
 
             os.remove(temp_image_path)
@@ -348,16 +350,16 @@ def create_demo(initial_language):
             return final_image_rgb, corrected_image_rgb, file_format, resolution
 
         def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
-                                        photo_type, photo_sheet_size, background_color, compress, change_background, 
-                                        rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, 
-                                        target_size, size_range_min, size_range_max, use_csv_size, layout_position):
+                                                photo_type, photo_sheet_size, background_color, compress, change_background,
+                                                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
+                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing):
             """Wrapper function for process_and_display that handles additional parameters."""
             nonlocal current_file_format, current_resolution
             
             result = process_and_display(
-                input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
-                photo_type, photo_sheet_size, background_color, compress, change_background, 
-                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position
+                input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                photo_type, photo_sheet_size, background_color, compress, change_background,
+                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing
             )
             
             if result:
@@ -485,6 +487,7 @@ def create_demo(initial_language):
                        layout_only: gr.update(label=t('layout_only', lang)),
                        sheet_rows: gr.update(label=t('sheet_rows', lang)),
                        sheet_cols: gr.update(label=t('sheet_cols', lang)),
+                       photos_spacing: gr.update(label=t('photos_spacing', lang)),
                        yolov8_path: gr.update(label=t('yolov8_path', lang)),
                        yunet_path: gr.update(label=t('yunet_path', lang)),
                        rmbg_path: gr.update(label=t('rmbg_path', lang)),
@@ -687,10 +690,10 @@ def create_demo(initial_language):
         lang_dropdown.change(
             update_language,
             inputs=[lang_dropdown],
-            outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color, 
-                    sheet_rows, sheet_cols, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
+            outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color,
+                    sheet_rows, sheet_cols, photos_spacing, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                     compress, change_background, rotate, resize, add_crop_lines, use_csv_size, target_size, size_range_min, size_range_max,
-                    process_btn, output_image, 
+                    process_btn, output_image,
                     corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
                     save_corrected_btn, save_corrected_path,
                     size_config_tab, color_config_tab, result_tab, corrected_image_tab,
@@ -738,10 +741,10 @@ def create_demo(initial_language):
 
         process_btn.click(
             process_and_display_wrapper,
-            inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, 
-                    photo_type, photo_sheet_size, background_color, compress, change_background, 
+            inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                    photo_type, photo_sheet_size, background_color, compress, change_background,
                     rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size, layout_position],
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing],
             outputs=[output_image, corrected_output]
         )
         

@@ -19,7 +19,7 @@ class PhotoSheetGenerator:
         cv2_image_rgb = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)
         return cv2_image_rgb
 
-    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True, layout_position=4):
+    def generate_photo_sheet(self, one_inch_photo_cv2, rows=3, cols=3, rotate=False, add_crop_lines=True, layout_position=4, photos_spacing=0):
         """
         Generate a photo sheet with the specified layout.
         
@@ -32,6 +32,7 @@ class PhotoSheetGenerator:
                               0: Top-Left, 1: Top, 2: Top-Right
                               3: Middle-Left, 4: Center, 5: Middle-Right
                               6: Bottom-Left, 7: Bottom, 8: Bottom-Right
+        :param photos_spacing: Pixel spacing between photos (applies to all sides)
         :return: Generated photo sheet in OpenCV format
         """
         one_inch_height, one_inch_width = one_inch_photo_cv2.shape[:2]
@@ -47,9 +48,11 @@ class PhotoSheetGenerator:
         # Create photo sheet (white background)
         five_inch_photo = Image.new('RGB', self.five_inch_size, 'white')
 
-        # Calculate total dimensions
-        total_width = cols * one_inch_width
-        total_height = rows * one_inch_height
+        # Calculate content dimensions (photos keep original sizes) and total including spacing
+        content_width = cols * one_inch_width
+        content_height = rows * one_inch_height
+        total_width = content_width + (cols - 1) * photos_spacing if cols > 1 else content_width
+        total_height = content_height + (rows - 1) * photos_spacing if rows > 1 else content_height
 
         if total_width > self.five_inch_size[0] or total_height > self.five_inch_size[1]:
             raise ValueError("The specified layout exceeds the size of the photo sheet")
@@ -77,27 +80,22 @@ class PhotoSheetGenerator:
         # Arrange photos on the sheet in an n*m layout
         for i in range(rows):
             for j in range(cols):
-                x = start_x + j * one_inch_width
-                y = start_y + i * one_inch_height
+                x = start_x + j * (one_inch_width + photos_spacing)
+                y = start_y + i * (one_inch_height + photos_spacing)
                 five_inch_photo.paste(one_inch_photo_pillow, (x, y))
 
         # Draw crop lines if requested
         if add_crop_lines:
             draw = ImageDraw.Draw(five_inch_photo)
             
-            # Draw outer rectangle
-            draw.rectangle([start_x, start_y, start_x + total_width, start_y + total_height], outline="black")
+            # Draw crop rectangles around EACH photo
+            for i in range(rows):
+                for j in range(cols):
+                    x = start_x + j * (one_inch_width + photos_spacing)
+                    y = start_y + i * (one_inch_height + photos_spacing)
+                    draw.rectangle([x, y, x + one_inch_width, y + one_inch_height], outline="black")
             # Necessary auxiliary lines, used to facilitate alignment during cutting
             draw.rectangle([start_x, start_y, self.five_inch_size[0], self.five_inch_size[1]], outline="black")
-
-            # Draw inner lines
-            for i in range(1, rows):
-                y = start_y + i * one_inch_height
-                draw.line([(start_x, y), (start_x + total_width, y)], fill="black")
-            
-            for j in range(1, cols):
-                x = start_x + j * one_inch_width
-                draw.line([(x, start_y), (x, start_y + total_height)], fill="black")
 
         # Set the DPI information
         five_inch_photo.info['dpi'] = (self.dpi, self.dpi)
