@@ -3,7 +3,7 @@ import os
 
 import cv2 as cv
 import numpy as np
-import onnxruntime as ort
+from .deviceUtils import get_onnx_session
 
 
 class YOLOv8Detector:
@@ -25,7 +25,7 @@ class YOLOv8Detector:
         logging.getLogger('ultralytics').setLevel(logging.ERROR)
 
         # Create ONNX Runtime session
-        self.session = ort.InferenceSession(model_path)
+        self.session = get_onnx_session(model_path)
         self.input_name = self.session.get_inputs()[0].name
         self.input_size = input_size
         self.box_score = box_score

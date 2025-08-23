@@ -130,7 +130,7 @@ class ImageProcessor:
             left_shoulder = (bbox_keypoints[18], bbox_keypoints[19],
                               bbox_keypoints[20]) # bbox_keypoints[5] right shoulder
             right_shoulder = (bbox_keypoints[15], bbox_keypoints[16], bbox_keypoints[17])   # bbox_keypoints[6] left shoulder
-            print(left_shoulder, right_shoulder)
+            # print(left_shoulder, right_shoulder)
 
             # Compute rotation angle
             angle = self.compute_rotation_angle(left_shoulder, right_shoulder, (height, width))
@@ -160,7 +160,7 @@ class ImageProcessor:
             # Adjust the crop area to ensure the face is centered in the image
             left_eye = [bbox_keypoints[6], bbox_keypoints[7], bbox_keypoints[8]]  # bbox_keypoints[2]
             right_eye = [bbox_keypoints[3], bbox_keypoints[4], bbox_keypoints[5]]  # bbox_keypoints[1]
-            print(left_eye, right_eye)
+            # print(left_eye, right_eye)
             face_center_x = (left_eye[0] + right_eye[0]) / 2
             crop_width = x2 - x1
 
@@ -171,7 +171,7 @@ class ImageProcessor:
             x1 = 0 if x1 < 0 else x1
             x2 = width if x2 > width else x2
 
-            print(x1,x2,y1,y2)
+            # print(x1,x2,y1,y2)
 
             # Crop the image
             cropped_image = rotated_image[y1:y2, x1:x2]

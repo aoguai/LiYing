@@ -1,7 +1,7 @@
-import onnxruntime as ort
 import numpy as np
 from PIL import Image
 import cv2
+from .deviceUtils import get_onnx_session
 
 def rgb_to_rgba(rgb):
     if not isinstance(rgb, (list, tuple)) or len(rgb) != 3:
@@ -31,7 +31,7 @@ class ImageSegmentation:
         self.model_path = model_path
         self.model_input_size = model_input_size
         try:
-            self.ort_session = ort.InferenceSession(model_path)
+            self.ort_session = get_onnx_session(model_path)
         except Exception as e:
             raise RuntimeError(f"Failed to load ONNX model: {e}")
 

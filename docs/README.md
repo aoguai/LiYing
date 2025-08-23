@@ -92,6 +92,26 @@ pip install -r requirements.txt # install Python helpers' dependencies
 
 **注： 如果您使用的是 Windows 7 系统请您至少需要是 Windows 7 SP1 以上版本，且要求 `onnxruntime==1.14.0, orjson==3.10.7, gradio==4.44.1`**
 
+### GPU推理加速（可选）
+
+如需使用英伟达GPU加速推理，请按以下步骤操作：
+
+1. 确保已安装 [CUDA](https://developer.nvidia.com/cuda-downloads) 与 [cuDNN](https://developer.nvidia.com/cudnn)
+2. [查找 ONNX、CUDA 与 cuDNN 之间的对应版本](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+2. 安装支持 GPU 的 onnxruntime 版本：
+   ```bash
+   # 如果已安装 CPU 版本，先卸载
+   pip uninstall onnxruntime
+   # 安装 GPU 版本, 确保版本正确
+   pip install onnxruntime-gpu
+   ```
+
+当前版本系统会自动检测是否支持 GPU，如果支持则优先使用 GPU 进行推理，否则会自动回退到 CPU。无需额外配置。
+
+**如果存在问题请优先检查且确保使用的 Python 版本 、CUDA 版本 、cuDNN 版本 与 onnxruntime-gpu 版本相互兼容。**
+
+<br>
+
 ### 📦 下载对应模型
 
 您需要下载该项目使用到的模型并将其放置在 `LiYing/src/model` 中。或者您可以在 CIL 中指定模型路径。

@@ -93,6 +93,26 @@ pip install -r requirements.txt # Install Python helpers' dependencies
 
 **Note: If you are using Windows 7, ensure you have at least Windows 7 SP1 and `onnxruntime==1.14.0, orjson==3.10.7, gradio==4.44.1`.**
 
+### GPU-Accelerated Inference (Optional)
+
+To leverage an NVIDIA GPU for accelerated inference, proceed with the following measures:
+
+1.  Ensure that both the [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) and the [cuDNN library]((https://developer.nvidia.com/cudnn)) are correctly installed on your system.
+2.  [Consult the official compatibility matrix to determine the required versions for ONNX Runtime, CUDA, and cuDNN that correspond with one another.](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+3.  Install the GPU-enabled build of the ONNX Runtime library:
+    ```bash
+    # First, uninstall the CPU-only variant if it is currently installed.
+    pip uninstall onnxruntime
+    # Install the GPU-enabled version, ensuring its compatibility with your environment.
+    pip install onnxruntime-gpu
+    ```
+
+The current version of the system is engineered to automatically detect the presence of a compatible GPU. Upon detection, it will prioritize the GPU for inference operations, seamlessly reverting to the CPU in its absence. This functionality requires no additional configuration.
+
+**Should any complications arise, it is imperative to first verify the mutual compatibility between your installed versions of Python, CUDA, cuDNN, and `onnxruntime-gpu`.**
+
+<br>
+
 ### 📦 Downloading the Required Models
 
 Download the models used by the project and place them in `LiYing/src/model`, or specify the model paths in the command line.
