@@ -72,15 +72,71 @@ def t(key, language):
     """Translate a key to the specified language."""
     return TEXTS.get(language, {}).get(key, TEXTS.get('en', {}).get(key, key))
 
+def hsl_to_rgb(h, s, l):
+    """
+    Converts HSL color value to RGB.
+    h: hue (0-360)
+    s: saturation (0-1)
+    l: lightness (0-1)
+    Returns: (r, g, b) tuple, with values in the range 0-255.
+    """
+
+    h = h / 360.0
+    
+    if s == 0:
+        r = g = b = l
+    else:
+        def hue_to_rgb(p, q, t):
+            if t < 0:
+                t += 1
+            if t > 1:
+                t -= 1
+            if t < 1/6:
+                return p + (q - p) * 6 * t
+            if t < 1/2:
+                return q
+            if t < 2/3:
+                return p + (q - p) * (2/3 - t) * 6
+            return p
+        
+        if l < 0.5:
+            q = l * (1 + s)
+        else:
+            q = l + s - l * s
+        
+        p = 2 * l - q
+        r = hue_to_rgb(p, q, h + 1/3)
+        g = hue_to_rgb(p, q, h)
+        b = hue_to_rgb(p, q, h - 1/3)
+
+    return (min(255, max(0, int(r * 255))),
+            min(255, max(0, int(g * 255))),
+            min(255, max(0, int(b * 255))))
+
 def parse_color(color_string):
-    """Parse color string to RGB list."""
+    """Parse color string to RGB list. Supports Hex, RGB/RGBA, and HSL/HSLA formats."""
     if color_string is None:
         return [255, 255, 255]
+    
+    # Hex
     if color_string.startswith('#'):
         return [int(color_string.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)]
-    rgb_match = re.match(r'rgba?$(\d+\.?\d*),\s*(\d+\.?\d*),\s*(\d+\.?\d*)(?:,\s*[\d.]+)?$', color_string)
+    
+    # RGB/RGBA
+    rgb_match = re.match(r'rgba?\((\d+\.?\d*),\s*(\d+\.?\d*),\s*(\d+\.?\d*)(?:,\s*[\d.]+)?\)', color_string)
     if rgb_match:
         return [min(255, max(0, int(float(x)))) for x in rgb_match.groups()]
+    
+    # HSL/HSLA
+    hsl_match = re.match(r'hsla?\((\d+\.?\d*),\s*(\d+\.?\d*)%,\s*(\d+\.?\d*)%(?:,\s*[\d.]+)?\)', color_string)
+    if hsl_match:
+        h, s, l = hsl_match.groups()
+        h = float(h) % 360
+        s = min(100, max(0, float(s))) / 100.0
+        l = min(100, max(0, float(l))) / 100.0
+        r, g, b = hsl_to_rgb(h, s, l)
+        return [r, g, b]
+    
     return [255, 255, 255]
 
 def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0):
