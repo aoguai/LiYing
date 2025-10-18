@@ -67,5 +67,7 @@
     "layout_position_6": "左下",
     "layout_position_7": "下",
     "layout_position_8": "右下",
-    "photos_spacing": "照片间距（像素）"
+    "photos_spacing": "照片间距（像素）",
+    "download_image": "下载图像",
+    "server_save_disabled": "服务器部署模式下已禁用保存到服务器功能"
 }

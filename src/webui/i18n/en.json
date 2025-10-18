@@ -67,5 +67,7 @@
     "layout_position_6": "Bottom-Left",
     "layout_position_7": "Bottom",
     "layout_position_8": "Bottom-Right",
-    "photos_spacing": "Photos Spacing (pixels)"
+    "photos_spacing": "Photos Spacing (pixels)",
+    "download_image": "Download Image",
+    "server_save_disabled": "Save to server is disabled in server deployment mode"
 }

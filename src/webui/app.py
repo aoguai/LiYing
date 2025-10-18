@@ -190,7 +190,7 @@ def save_image(image, filename, file_format='png', resolution=300):
     pil_image.save(filename, dpi=(resolution, resolution))
 
 
-def create_demo(initial_language):
+def create_demo(initial_language, deployment_mode):
     """Create the Gradio demo interface."""
     config_manager = ConfigManager(language=initial_language)
     config_manager.load_configs()
@@ -347,14 +347,30 @@ def create_demo(initial_language):
                 with gr.Tabs():
                     with gr.TabItem(t('result', initial_language)) as result_tab:
                         output_image = gr.Image(label=t('final_image', initial_language), height=800)
+                        download_final_file = gr.File(label=t('download_image', initial_language), visible=True, height=100)
                         with gr.Row():
-                            save_final_btn = gr.Button(t('save_image', initial_language))
-                            save_final_path = gr.Textbox(label=t('save_path', initial_language), value=SAVE_IMG_DIR)
+                            save_final_btn = gr.Button(
+                                t('save_image', initial_language),
+                                visible=(deployment_mode == 'local')
+                            )
+                            save_final_path = gr.Textbox(
+                                label=t('save_path', initial_language),
+                                value=SAVE_IMG_DIR,
+                                visible=(deployment_mode == 'local')
+                            )
                     with gr.TabItem(t('corrected_image', initial_language)) as corrected_image_tab:
                         corrected_output = gr.Image(label=t('corrected_image', initial_language), height=800)
+                        download_corrected_file = gr.File(label=t('download_image', initial_language), visible=True, height=50)
                         with gr.Row():
-                            save_corrected_btn = gr.Button(t('save_corrected', initial_language))
-                            save_corrected_path = gr.Textbox(label=t('save_path', initial_language), value=SAVE_IMG_DIR)
+                            save_corrected_btn = gr.Button(
+                                t('save_corrected', initial_language),
+                                visible=(deployment_mode == 'local')
+                            )
+                            save_corrected_path = gr.Textbox(
+                                label=t('save_path', initial_language),
+                                value=SAVE_IMG_DIR,
+                                visible=(deployment_mode == 'local')
+                            )
                 notification = gr.Textbox(label=t('notification', initial_language))
 
         def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
@@ -425,36 +441,45 @@ def create_demo(initial_language):
                 return final_image, corrected_image
             return None, None
 
-        def save_image_handler(image, path, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected):
-            nonlocal current_file_format, current_resolution
+        def save_image_handler(image, path, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected, is_download_mode=False):
+            nonlocal current_file_format, current_resolution, deployment_mode
             if image is None:
-                return t('no_image_to_save', lang)
+                return t('no_image_to_save', lang) if not is_download_mode else None
+            
+            if deployment_mode == 'server' and not is_download_mode:
+                return t('server_save_disabled', lang)
 
-            if not path.strip():
-                path = SAVE_IMG_DIR
-
-            path = os.path.normpath(path)
-
-            if os.path.exists(path):
-                is_dir = os.path.isdir(path)
-            else:
-                file_ext = os.path.splitext(path)[1]
-                is_dir = file_ext == ''
-
-            if is_dir:
-                os.makedirs(path, exist_ok=True)
+            # Download mode uses temporary files
+            if is_download_mode:
+                temp_dir = tempfile.mkdtemp()
                 filename = f"{photo_sheet_size}_{photo_type}_{str(background_color)}_{int(time.time())}.{current_file_format}"
-                full_path = os.path.join(path, filename)
+                full_path = os.path.join(temp_dir, filename)
             else:
-                dir_name = os.path.dirname(path)
-                base_name, ext = os.path.splitext(os.path.basename(path))
-                base_name = re.sub(r'[<>:"/\\|?*]', '_', base_name)  # Filter only illegal characters of filename
-                filename = f"{base_name}.{current_file_format}"
+                if not path.strip():
+                    path = SAVE_IMG_DIR
 
-                if dir_name:
-                    os.makedirs(dir_name, exist_ok=True)
+                path = os.path.normpath(path)
 
-                full_path = os.path.join(dir_name, filename) if dir_name else filename
+                if os.path.exists(path):
+                    is_dir = os.path.isdir(path)
+                else:
+                    file_ext = os.path.splitext(path)[1]
+                    is_dir = file_ext == ''
+
+                if is_dir:
+                    os.makedirs(path, exist_ok=True)
+                    filename = f"{photo_sheet_size}_{photo_type}_{str(background_color)}_{int(time.time())}.{current_file_format}"
+                    full_path = os.path.join(path, filename)
+                else:
+                    dir_name = os.path.dirname(path)
+                    base_name, ext = os.path.splitext(os.path.basename(path))
+                    base_name = re.sub(r'[<>:"/\\|?*]', '_', base_name)
+                    filename = f"{base_name}.{current_file_format}"
+
+                    if dir_name:
+                        os.makedirs(dir_name, exist_ok=True)
+
+                    full_path = os.path.join(dir_name, filename) if dir_name else filename
 
             file_size_limits = {}
             if is_corrected and compress:
@@ -496,11 +521,17 @@ def create_demo(initial_language):
                 else:
                     save_image(image, full_path, current_file_format, current_resolution)
                 
-                return t('image_saved_success', lang).format(path=full_path)
+                if is_download_mode:
+                    return full_path
+                else:
+                    return t('image_saved_success', lang).format(path=full_path)
             except Exception as e:
-                return t('image_save_error', lang).format(error=str(e))
+                if is_download_mode:
+                    return None
+                else:
+                    return t('image_save_error', lang).format(error=str(e))
             finally:
-                if temp_dir and os.path.exists(temp_dir):
+                if temp_dir and os.path.exists(temp_dir) and not is_download_mode:
                     shutil.rmtree(temp_dir)
 
         def update_language(lang):
@@ -560,6 +591,8 @@ def create_demo(initial_language):
                        process_btn: gr.update(value=t('process_btn', lang)),
                        output_image: gr.update(label=t('final_image', lang)),
                        corrected_output: gr.update(label=t('corrected_image', lang)),
+                       download_final_file: gr.update(label=t('download_image', lang)),
+                       download_corrected_file: gr.update(label=t('download_image', lang)),
                        save_final_btn: gr.update(value=t('save_image', lang)),
                        save_final_path: gr.update(label=t('save_path', lang)),
                        save_corrected_btn: gr.update(value=t('save_corrected', lang)),
@@ -591,10 +624,11 @@ def create_demo(initial_language):
                        update_color_btn: gr.update(value=t('save_color', lang)),
                        config_notification: gr.update(label=t('config_notification', lang)),
                        size_option_type: gr.update(
-                           label=t('size_input_option', lang),
-                           choices=[(t('target_size_radio', lang), "target"), (t('size_range_radio', lang), "range")]
-                       ), layout_position: gr.update(choices=new_layout_position_choices, value=4,
-                                                     label=t('layout_position', lang)), language: lang}
+                            label=t('size_input_option', lang),
+                            choices=[(t('target_size_radio', lang), "target"), (t('size_range_radio', lang), "range")]
+                        ), layout_position: gr.update(choices=new_layout_position_choices, value=4,
+                                                      label=t('layout_position', lang)), language: lang}
+            
             return updates
 
         def confirm_advanced_settings_fn(yolov8_path, yunet_path, rmbg_path, size_config, color_config):
@@ -742,21 +776,22 @@ def create_demo(initial_language):
                         size_range_max: gr.update(visible=True, label=current_size_range_max_label),
                     })
             return updates
+        
+        lang_outputs = [title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color,
+                sheet_rows, sheet_cols, photos_spacing, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                compress, change_background, rotate, resize, add_crop_lines, use_csv_size, target_size, size_range_min, size_range_max,
+                process_btn, output_image, corrected_output, download_final_file, download_corrected_file,
+                notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
+                save_corrected_btn, save_corrected_path,
+                size_config_tab, color_config_tab, result_tab, corrected_image_tab,
+                size_df, color_df, add_size_btn, update_size_btn,
+                add_color_btn, update_color_btn, config_notification,
+                size_option_type, language, layout_position]
 
         lang_dropdown.change(
             update_language,
             inputs=[lang_dropdown],
-            outputs=[title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color,
-                    sheet_rows, sheet_cols, photos_spacing, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
-                    compress, change_background, rotate, resize, add_crop_lines, use_csv_size, target_size, size_range_min, size_range_max,
-                    process_btn, output_image,
-                    corrected_output, notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
-                    save_corrected_btn, save_corrected_path,
-                    size_config_tab, color_config_tab, result_tab, corrected_image_tab,
-                    size_df, color_df, add_size_btn, update_size_btn,
-                    add_color_btn, update_color_btn, config_notification,
-                    size_option_type, language, layout_position
-                    ]
+            outputs=lang_outputs
         )
 
         confirm_advanced_settings.click(
@@ -804,8 +839,37 @@ def create_demo(initial_language):
             outputs=[output_image, corrected_output]
         )
         
-        final_save_fn = partial(save_image_handler, is_corrected=False)
-        corrected_save_fn = partial(save_image_handler, is_corrected=True)
+        def download_image_handler(image, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected):
+            file_path = save_image_handler(
+                image, "", lang, photo_type, photo_sheet_size, background_color,
+                compress, use_csv_size, target_size, size_range_min, size_range_max,
+                is_corrected, is_download_mode=True
+            )
+            return file_path
+        
+        def save_image_handler_wrapper(image, path, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected):
+            return save_image_handler(
+                image, path, lang, photo_type, photo_sheet_size, background_color,
+                compress, use_csv_size, target_size, size_range_min, size_range_max,
+                is_corrected, is_download_mode=False
+            )
+        
+        final_save_fn = partial(save_image_handler_wrapper, is_corrected=False)
+        corrected_save_fn = partial(save_image_handler_wrapper, is_corrected=True)
+        final_download_fn = partial(download_image_handler, is_corrected=False)
+        corrected_download_fn = partial(download_image_handler, is_corrected=True)
+
+        output_image.change(
+            final_download_fn,
+            inputs=[output_image, lang_dropdown, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max],
+            outputs=[download_final_file]
+        )
+
+        corrected_output.change(
+            corrected_download_fn,
+            inputs=[corrected_output, lang_dropdown, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max],
+            outputs=[download_corrected_file]
+        )
 
         save_final_btn.click(
             final_save_fn,
@@ -821,17 +885,24 @@ def create_demo(initial_language):
     
     return demo
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LiYing Photo Processing System")
     parser.add_argument("--lang", type=str, choices=['en', 'zh'], default=get_language(),
                         help="Specify the language (en/zh)")
-    parser.add_argument("--server_name", type=str, default="127.0.0.1")
-    parser.add_argument("--server_port", type=int, default=7860)
+    parser.add_argument("--server_name", type=str, default="127.0.0.1", help="Specify the hostname or IP address the server should bind to (default: 127.0.0.1)")
+    parser.add_argument("--server_port", type=int, default=7860, help="Specify the port number the server should listen on (default: 7860)")
+    parser.add_argument("--deployment_mode", type=str, choices=['local', 'server'], default=None,
+                        help="Specify the deployment mode (local/server). If not specified, auto-detect based on server_name")
     args = parser.parse_args()
 
+    if args.deployment_mode:
+        deployment_mode = args.deployment_mode
+    else:
+        deployment_mode = 'local' if args.server_name in ['127.0.0.1', 'localhost'] else 'server'
+
     initial_language = args.lang
-    demo = create_demo(initial_language)
+    demo = create_demo(initial_language, deployment_mode)
 
     print(f"Starting Gradio server on {args.server_name}:{args.server_port}")
-    demo.launch(share=False, server_name=args.server_name, server_port=args.server_port)
+    print(f"Deployment mode: {deployment_mode}")
+    demo.launch(share=False, server_name=args.server_name, server_port=args.server_port, ssl_verify=False)

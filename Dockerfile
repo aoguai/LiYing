@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 7860
 
-CMD ["python", "src/webui/app.py", "--server_name", "0.0.0.0", "--server_port", "7860"]
+CMD ["python", "src/webui/app.py", "--server_name", "0.0.0.0", "--server_port", "7860", "--deployment_mode", "server"]
