@@ -885,12 +885,44 @@ def create_demo(initial_language, deployment_mode):
     
     return demo
 
+def get_config_value(env_var_name, default_value, value_type=str, choices=None):
+    """
+    Get configuration value from environment variable with priority: CLI > ENV > auto-detection > default
+    
+    :param env_var_name: Environment variable name (without LIYING_ prefix)
+    :param default_value: Default value if not found in environment
+    :param value_type: Type to convert the value to (str, int)
+    :param choices: List of valid choices for validation
+    :return: Configuration value
+    """
+    env_key = f"LIYING_{env_var_name.upper()}"
+    env_value = os.environ.get(env_key)
+    
+    if env_value:
+        try:
+            if value_type == int:
+                result = int(env_value)
+            else:
+                result = env_value
+            
+            if choices and result not in choices:
+                print(f"Warning: {env_key}={env_value} is not in valid choices {choices}, using default value")
+                return default_value
+            
+            return result
+        except (ValueError, TypeError) as e:
+            print(f"Warning: Failed to parse {env_key}={env_value}, using default value: {e}")
+            return default_value
+    
+    return default_value
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LiYing Photo Processing System")
-    parser.add_argument("--lang", type=str, choices=['en', 'zh'], default=get_language(),
+    parser.add_argument("--lang", type=str, choices=['en', 'zh'], default=get_config_value('lang', get_language(), str, ['en', 'zh']),
                         help="Specify the language (en/zh)")
-    parser.add_argument("--server_name", type=str, default="127.0.0.1", help="Specify the hostname or IP address the server should bind to (default: 127.0.0.1)")
-    parser.add_argument("--server_port", type=int, default=7860, help="Specify the port number the server should listen on (default: 7860)")
+    parser.add_argument("--server_name", type=str, default=get_config_value('server_name', "127.0.0.1"), help="Specify the hostname or IP address the server should bind to (default: 127.0.0.1)")
+    parser.add_argument("--server_port", type=int, default=get_config_value('server_port', 7860, int), help="Specify the port number the server should listen on (default: 7860)")
     parser.add_argument("--deployment_mode", type=str, choices=['local', 'server'], default=None,
                         help="Specify the deployment mode (local/server). If not specified, auto-detect based on server_name")
     args = parser.parse_args()
@@ -898,7 +930,13 @@ if __name__ == "__main__":
     if args.deployment_mode:
         deployment_mode = args.deployment_mode
     else:
-        deployment_mode = 'local' if args.server_name in ['127.0.0.1', 'localhost'] else 'server'
+        deployment_mode_env = os.environ.get('LIYING_DEPLOYMENT_MODE')
+        if deployment_mode_env and deployment_mode_env in ['local', 'server']:
+            deployment_mode = deployment_mode_env
+        else:
+            if deployment_mode_env:
+                print(f"Warning: LIYING_DEPLOYMENT_MODE={deployment_mode_env} is not valid, auto-detecting...")
+            deployment_mode = 'local' if args.server_name in ['127.0.0.1', 'localhost'] else 'server'
 
     initial_language = args.lang
     demo = create_demo(initial_language, deployment_mode)
