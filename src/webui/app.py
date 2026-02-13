@@ -6,6 +6,7 @@ import re
 import sys
 import time
 import tempfile
+import zipfile
 from pathlib import Path
 import shutil
 from functools import partial
@@ -31,6 +32,8 @@ DEFAULT_YUNET_PATH = os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx'
 DEFAULT_RMBG_PATH = os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx')
 DEFAULT_SIZE_CONFIG = os.path.join(DATA_DIR, 'size_{}.csv')
 DEFAULT_COLOR_CONFIG = os.path.join(DATA_DIR, 'color_{}.csv')
+
+SUPPORTED_IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tif', '.tiff'}
 
 sys.path.extend([DATA_DIR, MODEL_DIR, TOOL_DIR])
 
@@ -196,6 +199,10 @@ def create_demo(initial_language, deployment_mode):
     config_manager.load_configs()
     photo_requirements = PhotoRequirements(language=initial_language)
 
+    def cleanup_temp_dir(path):
+        if path and os.path.exists(path):
+            shutil.rmtree(path, ignore_errors=True)
+
     def update_configs():
         nonlocal photo_size_configs, sheet_size_configs, color_configs, photo_size_choices, sheet_size_choices, color_choices
         photo_size_configs = config_manager.get_photo_size_configs()
@@ -217,6 +224,10 @@ def create_demo(initial_language, deployment_mode):
 
     with gr.Blocks(theme=gr.themes.Soft()) as demo:
         language = gr.State(initial_language)
+        batch_final_images = gr.State([])
+        batch_corrected_images = gr.State([])
+        batch_download_offset = gr.State(0)
+        batch_temp_dir = gr.State(None, delete_callback=cleanup_temp_dir)
 
         title = gr.Markdown(f"# {t('title', initial_language)}")
 
@@ -227,7 +238,13 @@ def create_demo(initial_language, deployment_mode):
 
         with gr.Row():
             with gr.Column(scale=1):
-                input_image = gr.Image(type="numpy", label=t('upload_photo', initial_language), height=400)
+                input_image = gr.File(
+                    file_count="multiple",
+                    file_types=["image"],
+                    type="filepath",
+                    label=t('upload_photo', initial_language),
+                    height=160
+                )
                 lang_dropdown = gr.Dropdown(
                     choices=[("English", "en"), ("中文", "zh")], 
                     value=initial_language, 
@@ -347,7 +364,7 @@ def create_demo(initial_language, deployment_mode):
                 with gr.Tabs():
                     with gr.TabItem(t('result', initial_language)) as result_tab:
                         output_image = gr.Image(label=t('final_image', initial_language), height=800)
-                        download_final_file = gr.File(label=t('download_image', initial_language), visible=True, height=100)
+                        download_final_file = gr.File(label=t('download_image', initial_language), visible=True, height=160)
                         with gr.Row():
                             save_final_btn = gr.Button(
                                 t('save_image', initial_language),
@@ -360,7 +377,7 @@ def create_demo(initial_language, deployment_mode):
                             )
                     with gr.TabItem(t('corrected_image', initial_language)) as corrected_image_tab:
                         corrected_output = gr.Image(label=t('corrected_image', initial_language), height=800)
-                        download_corrected_file = gr.File(label=t('download_image', initial_language), visible=True, height=50)
+                        download_corrected_file = gr.File(label=t('download_image', initial_language), visible=True, height=160)
                         with gr.Row():
                             save_corrected_btn = gr.Button(
                                 t('save_corrected', initial_language),
@@ -373,73 +390,199 @@ def create_demo(initial_language, deployment_mode):
                             )
                 notification = gr.Textbox(label=t('notification', initial_language))
 
-        def process_and_display(image, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
+        def process_and_display(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
                                         photo_sheet_size, background_color, compress, change_background, rotate, resize,
                                         sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing):
-            """Process and display the image with given parameters."""
+            """Process and display image(s) with given parameters (supports batch)."""
             # Update the configuration file path of ConfigManager
             config_manager.size_file = size_config
             config_manager.color_file = color_config
             config_manager.load_configs()
             update_configs()
 
+            if input_files is None:
+                return None
+
+            if isinstance(input_files, str):
+                input_paths = [input_files]
+            else:
+                input_paths = list(input_files)
+
+            input_paths = [
+                p for p in input_paths
+                if p and Path(p).suffix.lower() in SUPPORTED_IMAGE_EXTS
+            ]
+            if not input_paths:
+                return None
+
             rgb_list = parse_color(background_color)
-            image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            temp_image_path = "temp_input_image.jpg"
-            cv2.imwrite(temp_image_path, image_bgr)
-
-            result = process_image(
-                temp_image_path,
-                yolov8_path,
-                yunet_path,
-                rmbg_path,
-                photo_requirements,
-                photo_type=photo_type,
-                photo_sheet_size=photo_sheet_size,
-                rgb_list=rgb_list,
-                compress=compress,
-                change_background=change_background and not layout_only,
-                rotate=rotate,
-                resize=resize,
-                sheet_rows=sheet_rows,
-                sheet_cols=sheet_cols,
-                add_crop_lines=add_crop_lines,
-                layout_position=layout_position,
-                photos_spacing=photos_spacing
-            )
-
-            os.remove(temp_image_path)
-
             sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
             file_format = sheet_info.get('file_format', 'png').lower()
             if file_format == 'jpg':
                 file_format = 'jpeg'
             resolution = sheet_info.get('resolution', 300)
 
-            final_image_rgb = cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB)
-            corrected_image_rgb = cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB)
+            final_images_rgb = []
+            corrected_images_rgb = []
+            processed_paths = []
+            errors = []
 
-            return final_image_rgb, corrected_image_rgb, file_format, resolution
+            for img_path in input_paths:
+                try:
+                    result = process_image(
+                        img_path,
+                        yolov8_path,
+                        yunet_path,
+                        rmbg_path,
+                        photo_requirements,
+                        photo_type=photo_type,
+                        photo_sheet_size=photo_sheet_size,
+                        rgb_list=rgb_list,
+                        compress=compress,
+                        change_background=change_background and not layout_only,
+                        rotate=rotate,
+                        resize=resize,
+                        sheet_rows=sheet_rows,
+                        sheet_cols=sheet_cols,
+                        add_crop_lines=add_crop_lines,
+                        layout_position=layout_position,
+                        photos_spacing=photos_spacing
+                    )
+                except Exception as e:
+                    errors.append(f"{Path(img_path).name}: {str(e)}")
+                    continue
 
-        def process_and_display_wrapper(input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                final_images_rgb.append(cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB))
+                corrected_images_rgb.append(cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB))
+                processed_paths.append(img_path)
+
+            if errors:
+                preview_errors = errors[:3]
+                suffix = "" if len(errors) <= 3 else f" (+{len(errors) - 3})"
+                gr.Warning("Failed to process some images: " + "; ".join(preview_errors) + suffix)
+
+            if not processed_paths:
+                return None
+
+            return final_images_rgb, corrected_images_rgb, file_format, resolution, processed_paths
+
+        def process_and_display_wrapper(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                                 photo_type, photo_sheet_size, background_color, compress, change_background,
                                                 rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing):
-            """Wrapper function for process_and_display that handles additional parameters."""
+                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                                                lang, previous_temp_dir):
+            """Wrapper for process_and_display that also prepares download files (supports batch)."""
             nonlocal current_file_format, current_resolution
-            
+
+            if previous_temp_dir and os.path.exists(previous_temp_dir):
+                shutil.rmtree(previous_temp_dir, ignore_errors=True)
+
             result = process_and_display(
-                input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                 photo_type, photo_sheet_size, background_color, compress, change_background,
                 rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing
             )
-            
-            if result:
-                final_image, corrected_image, file_format, resolution = result
-                current_file_format = file_format if file_format else 'png'
-                current_resolution = resolution if resolution else 300
-                return final_image, corrected_image
-            return None, None
+
+            if not result:
+                return None, None, None, None, [], [], 0, None
+
+            final_images, corrected_images, file_format, resolution, processed_paths = result
+            current_file_format = file_format if file_format else 'png'
+            current_resolution = resolution if resolution else 300
+
+            def sanitize_filename(name: str) -> str:
+                return re.sub(r'[<>:"/\\|?*]', '_', name)
+
+            # Build file size limits for corrected image downloads (optional)
+            file_size_limits = {}
+            if compress:
+                if use_csv_size:
+                    file_size_limits = photo_requirements.get_file_size_limits(photo_type)
+                else:
+                    validated_target_size = None
+                    validated_size_range = None
+
+                    if target_size is not None and target_size > 0:
+                        validated_target_size = int(target_size)
+
+                    if size_range_min is not None and size_range_max is not None and size_range_min > 0 and size_range_max > 0:
+                        if size_range_min < size_range_max:
+                            validated_size_range = (int(size_range_min), int(size_range_max))
+                        else:
+                            gr.Warning(t('size_range_error', lang) if 'size_range_error' in TEXTS[lang] else "Min size must be less than max size")
+
+                    if validated_target_size and validated_size_range:
+                        gr.Warning(t('size_params_conflict', lang) if 'size_params_conflict' in TEXTS[lang] else "Both target size and size range provided. Using target size.")
+                        validated_size_range = None
+
+                    if validated_target_size:
+                        file_size_limits['target_size'] = validated_target_size
+                    elif validated_size_range:
+                        file_size_limits['size_range'] = validated_size_range
+
+            output_dir = tempfile.mkdtemp(prefix="liying_webui_")
+
+            try:
+                final_paths = []
+                corrected_paths = []
+
+                for idx, img_path in enumerate(processed_paths):
+                    stem = sanitize_filename(Path(img_path).stem) or f"image_{idx + 1}"
+
+                    final_path = os.path.join(output_dir, f"{stem}_sheet.{current_file_format}")
+                    save_image(final_images[idx], final_path, current_file_format, current_resolution)
+                    final_paths.append(final_path)
+
+                    corrected_path = os.path.join(output_dir, f"{stem}_corrected.{current_file_format}")
+                    if compress and file_size_limits:
+                        tmp_path = os.path.join(output_dir, f"__tmp_{stem}_corrected.{current_file_format}")
+                        save_image(corrected_images[idx], tmp_path, current_file_format, current_resolution)
+                        ImageCompressor.compress_image(
+                            fp=Path(tmp_path),
+                            output=Path(corrected_path),
+                            force=True,
+                            **file_size_limits
+                        )
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    else:
+                        save_image(corrected_images[idx], corrected_path, current_file_format, current_resolution)
+                    corrected_paths.append(corrected_path)
+
+                if len(processed_paths) > 1:
+                    ts = int(time.time())
+                    final_zip_path = os.path.join(output_dir, f"batch_final_{ts}.zip")
+                    corrected_zip_path = os.path.join(output_dir, f"batch_corrected_{ts}.zip")
+
+                    with zipfile.ZipFile(final_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                        for fp in final_paths:
+                            zf.write(fp, arcname=os.path.basename(fp))
+
+                    with zipfile.ZipFile(corrected_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                        for fp in corrected_paths:
+                            zf.write(fp, arcname=os.path.basename(fp))
+
+                    download_final_value = [final_zip_path] + final_paths
+                    download_corrected_value = [corrected_zip_path] + corrected_paths
+                    offset = 1
+                else:
+                    download_final_value = final_paths[0]
+                    download_corrected_value = corrected_paths[0]
+                    offset = 0
+
+                return (
+                    final_images[0],
+                    corrected_images[0],
+                    download_final_value,
+                    download_corrected_value,
+                    final_images,
+                    corrected_images,
+                    offset,
+                    output_dir,
+                )
+            except Exception:
+                shutil.rmtree(output_dir, ignore_errors=True)
+                raise
 
         def save_image_handler(image, path, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected, is_download_mode=False):
             nonlocal current_file_format, current_resolution, deployment_mode
@@ -835,18 +978,36 @@ def create_demo(initial_language, deployment_mode):
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                     photo_type, photo_sheet_size, background_color, compress, change_background,
                     rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing],
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                    lang_dropdown, batch_temp_dir],
+            outputs=[output_image, corrected_output, download_final_file, download_corrected_file,
+                     batch_final_images, batch_corrected_images, batch_download_offset, batch_temp_dir]
+        )
+
+        def select_batch_result(evt: gr.SelectData, final_images, corrected_images, offset):
+            if not final_images or not corrected_images:
+                return None, None
+
+            index = evt.index - int(offset or 0)
+            if index < 0:
+                index = 0
+            index = min(index, len(final_images) - 1)
+
+            corrected_index = min(index, len(corrected_images) - 1)
+            return final_images[index], corrected_images[corrected_index]
+
+        download_final_file.select(
+            fn=select_batch_result,
+            inputs=[batch_final_images, batch_corrected_images, batch_download_offset],
             outputs=[output_image, corrected_output]
         )
-        
-        def download_image_handler(image, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected):
-            file_path = save_image_handler(
-                image, "", lang, photo_type, photo_sheet_size, background_color,
-                compress, use_csv_size, target_size, size_range_min, size_range_max,
-                is_corrected, is_download_mode=True
-            )
-            return file_path
-        
+
+        download_corrected_file.select(
+            fn=select_batch_result,
+            inputs=[batch_final_images, batch_corrected_images, batch_download_offset],
+            outputs=[output_image, corrected_output]
+        )
+
         def save_image_handler_wrapper(image, path, lang, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max, is_corrected):
             return save_image_handler(
                 image, path, lang, photo_type, photo_sheet_size, background_color,
@@ -856,20 +1017,6 @@ def create_demo(initial_language, deployment_mode):
         
         final_save_fn = partial(save_image_handler_wrapper, is_corrected=False)
         corrected_save_fn = partial(save_image_handler_wrapper, is_corrected=True)
-        final_download_fn = partial(download_image_handler, is_corrected=False)
-        corrected_download_fn = partial(download_image_handler, is_corrected=True)
-
-        output_image.change(
-            final_download_fn,
-            inputs=[output_image, lang_dropdown, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max],
-            outputs=[download_final_file]
-        )
-
-        corrected_output.change(
-            corrected_download_fn,
-            inputs=[corrected_output, lang_dropdown, photo_type, photo_sheet_size, background_color, compress, use_csv_size, target_size, size_range_min, size_range_max],
-            outputs=[download_corrected_file]
-        )
 
         save_final_btn.click(
             final_save_fn,
