@@ -8,7 +8,7 @@ import numpy as np
 import piexif
 from PIL import Image
 
-from .ImageSegmentation import ImageSegmentation
+from .ImageSegmentation import ImageSegmentation, rgb_to_rgba
 from .PhotoEntity import PhotoEntity
 from .PhotoRequirements import PhotoRequirements
 from .agpic import ImageCompressor
@@ -220,14 +220,15 @@ class ImageProcessor:
         """
         Replace the background of the human region in the image
 
-        :param rgb_list: New list of RGB channel values
+        :param rgb_list: New list/tuple of RGB or RGBA channel values.
+                         If RGBA is provided and alpha=0, output will have a transparent background.
         :return: Updated PhotoEntity instance
         :rtype: PhotoEntity
         """
         if rgb_list is not None:
-            if not (isinstance(rgb_list, (list, tuple)) and len(rgb_list) == 3):
-                raise ValueError("The RGB value format is incorrect")
-            self.segmentation.rgb_list = tuple(rgb_list)
+            if not (isinstance(rgb_list, (list, tuple)) and len(rgb_list) in (3, 4)):
+                raise ValueError("The RGB/RGBA value format is incorrect")
+            self.segmentation.rgb_list = rgb_to_rgba(rgb_list)
 
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo
@@ -321,59 +322,111 @@ class ImageProcessor:
 
         # Check if we need to compress (either y_b flag is True or size parameters are provided)
         need_compression = y_b or target_size is not None or size_range is not None
+
+        image = self.photo.image
+        file_ext = os.path.splitext(save_path)[1].lower()
+
+        has_alpha_channel = (
+            isinstance(image, np.ndarray)
+            and len(image.shape) == 3
+            and image.shape[2] == 4
+        )
+        has_transparency = False
+        if has_alpha_channel:
+            # Any alpha < 255 means we need PNG to preserve transparency.
+            try:
+                has_transparency = image[:, :, 3].min() < 255
+            except Exception:
+                has_transparency = True
+
+        output_format = 'JPEG'
+        if file_ext == '.png':
+            output_format = 'PNG'
+        elif file_ext in ['.jpg', '.jpeg', '.jpe']:
+            output_format = 'JPEG'
+
+        # Transparent output must be saved as PNG to preserve alpha.
+        if has_transparency and output_format != 'PNG':
+            warnings.warn(
+                f"Image contains transparent pixels. Saving as PNG to preserve alpha: {save_path}",
+                UserWarning
+            )
+            save_path = os.path.splitext(save_path)[0] + '.png'
+            output_format = 'PNG'
+            file_ext = '.png'
+
+        # Prepare a 3-channel BGR view for formats without alpha (JPEG, and non-transparent PNG).
+        image_bgr = image
+        if has_alpha_channel:
+            image_bgr = cv.cvtColor(image, cv.COLOR_BGRA2BGR)
+
+        # Transparent PNG: save directly (skip byte-size driven compression to avoid losing alpha).
+        if output_format == 'PNG' and has_transparency:
+            if need_compression:
+                warnings.warn(
+                    "Transparent PNG does not support target_size/size_range compression in save_photos(). "
+                    "Saving without compression.",
+                    UserWarning
+                )
+
+            pil_image = Image.fromarray(cv.cvtColor(image, cv.COLOR_BGRA2RGBA))
+            pil_image.save(save_path, format="PNG", dpi=(dpi, dpi))
+            return
         
         if need_compression:
             buffer = BytesIO()
-            pil_image = Image.fromarray(cv.cvtColor(self.photo.image, cv.COLOR_BGR2RGB))
-            pil_image.save(buffer, format="JPEG")
+
+            if output_format == 'PNG':
+                pil_image = Image.fromarray(cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB))
+                pil_image.save(buffer, format="PNG", dpi=(dpi, dpi))
+            else:
+                pil_image = Image.fromarray(cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB))
+                pil_image.save(buffer, format="JPEG")
+
             image_bytes = buffer.getvalue()
-            
+
             try:
+                compress_kwargs = {"quality": 85, "output_format": output_format}
                 if target_size is not None:
-                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
-                        image_bytes, quality=85, target_size=target_size
-                    )
+                    compress_kwargs["target_size"] = target_size
                 elif size_range is not None:
-                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
-                        image_bytes, quality=85, size_range=size_range
-                    )
-                else:
-                    compressed_bytes = ImageCompressor.compress_image_from_bytes(
-                        image_bytes, quality=85
-                    )
+                    compress_kwargs["size_range"] = size_range
+
+                compressed_bytes = ImageCompressor.compress_image_from_bytes(image_bytes, **compress_kwargs)
 
                 # Write compressed bytes directly to the file
                 with open(save_path, 'wb') as f:
                     f.write(compressed_bytes)
-                
-                # Setting up DPI using piexif
-                try:
-                    # Converting DPI to EXIF resolution format
-                    x_resolution = (dpi, 1)  # DPI value and unit
-                    y_resolution = (dpi, 1)
-                    resolution_unit = 2  # inches
-                    
-                    # Read existing EXIF data (if present)
-                    exif_dict = piexif.load(save_path)
-                    
-                    # If '0th' does not exist, create it
-                    if '0th' not in exif_dict:
-                        exif_dict['0th'] = {}
-                    
-                    # Set resolution information
-                    exif_dict['0th'][piexif.ImageIFD.XResolution] = x_resolution
-                    exif_dict['0th'][piexif.ImageIFD.YResolution] = y_resolution
-                    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = resolution_unit
-                    
-                    # Write EXIF data back to file
-                    exif_bytes = piexif.dump(exif_dict)
-                    piexif.insert(exif_bytes, save_path)
-                except Exception as e:
-                    warnings.warn(f"Failed to set DPI with piexif: {str(e)}. Image saved without DPI metadata.", UserWarning)
-                
+
+                # DPI metadata: only supported for JPEG via piexif in current implementation.
+                if output_format == 'JPEG':
+                    try:
+                        x_resolution = (dpi, 1)
+                        y_resolution = (dpi, 1)
+                        resolution_unit = 2  # inches
+
+                        exif_dict = piexif.load(save_path)
+                        if '0th' not in exif_dict:
+                            exif_dict['0th'] = {}
+
+                        exif_dict['0th'][piexif.ImageIFD.XResolution] = x_resolution
+                        exif_dict['0th'][piexif.ImageIFD.YResolution] = y_resolution
+                        exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = resolution_unit
+
+                        exif_bytes = piexif.dump(exif_dict)
+                        piexif.insert(exif_bytes, save_path)
+                    except Exception as e:
+                        warnings.warn(f"Failed to set DPI with piexif: {str(e)}. Image saved without DPI metadata.", UserWarning)
+
             except Exception as e:
                 warnings.warn(f"Image compression failed: {str(e)}. Saving uncompressed image.", UserWarning)
-                _, img_bytes = cv.imencode('.jpg', self.photo.image, [cv.IMWRITE_JPEG_QUALITY, 95])
+
+                if output_format == 'PNG':
+                    pil_image = Image.fromarray(cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB))
+                    pil_image.save(save_path, format="PNG", dpi=(dpi, dpi))
+                    return
+
+                _, img_bytes = cv.imencode('.jpg', image_bgr, [cv.IMWRITE_JPEG_QUALITY, 95])
                 with open(save_path, 'wb') as f:
                     f.write(img_bytes)
 
@@ -383,7 +436,6 @@ class ImageProcessor:
                     resolution_unit = 2
 
                     exif_dict = piexif.load(save_path)
-
                     if '0th' not in exif_dict:
                         exif_dict['0th'] = {}
 
@@ -396,7 +448,12 @@ class ImageProcessor:
                 except Exception as ex:
                     warnings.warn(f"Failed to set DPI with piexif: {str(ex)}. Image saved without DPI metadata.", UserWarning)
         else:
-            _, img_bytes = cv.imencode('.jpg', self.photo.image, [cv.IMWRITE_JPEG_QUALITY, 95])
+            if output_format == 'PNG':
+                pil_image = Image.fromarray(cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB))
+                pil_image.save(save_path, format="PNG", dpi=(dpi, dpi))
+                return
+
+            _, img_bytes = cv.imencode('.jpg', image_bgr, [cv.IMWRITE_JPEG_QUALITY, 95])
             with open(save_path, 'wb') as f:
                 f.write(img_bytes)
 
@@ -406,7 +463,6 @@ class ImageProcessor:
                 resolution_unit = 2
 
                 exif_dict = piexif.load(save_path)
-
                 if '0th' not in exif_dict:
                     exif_dict['0th'] = {}
 

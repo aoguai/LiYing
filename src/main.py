@@ -46,7 +46,7 @@ class RGBListType(click.ParamType):
             try:
                 return tuple(int(x) for x in value.split(','))
             except ValueError:
-                self.fail(f'{value} is not a valid RGB list format. Expected format: INTEGER,INTEGER,INTEGER.')
+                self.fail(f'{value} is not a valid RGB/RGBA list format. Expected format: INTEGER,INTEGER,INTEGER[,INTEGER].')
         return 0, 0, 0  # Default value
 
 
@@ -134,7 +134,7 @@ def echo_message(key, **kwargs):
               default=os.path.join(DATA_DIR, f'color_{get_language()}.csv'),
               help='Path to color configuration file' if get_language() == 'en' else '颜色配置文件路径')
 @click.option('-b', '--rgb-list', type=RGBListType(), default='0,0,0',
-              help='RGB channel values list (comma-separated) for image composition' if get_language() == 'en' else 'RGB 通道值列表（英文逗号分隔），用于图像合成')
+              help='RGB(A) channel values list (comma-separated) for image composition (optional alpha: 0-255)' if get_language() == 'en' else 'RGB(A) 通道值列表（英文逗号分隔，可选 Alpha: 0-255），用于图像合成')
 @click.option('-s', '--save-path', type=click.Path(), default='output.jpg',
               help='Path to save the output image' if get_language() == 'en' else '保存路径')
 @click.option('-p', '--photo-type', type=str, default='One Inch' if get_language() == 'en' else '一寸',

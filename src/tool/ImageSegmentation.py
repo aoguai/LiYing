@@ -4,15 +4,17 @@ import cv2
 from .deviceUtils import get_onnx_session
 
 def rgb_to_rgba(rgb):
-    if not isinstance(rgb, (list, tuple)) or len(rgb) != 3:
-        raise ValueError("rgb must be a list or tuple containing three elements")
+    if not isinstance(rgb, (list, tuple)) or len(rgb) not in (3, 4):
+        raise ValueError("rgb must be a list or tuple containing three (RGB) or four (RGBA) elements")
     if any(not (0 <= color <= 255) for color in rgb):
         raise ValueError("rgb values must be in the range [0, 255]")
 
-    red, green, blue = rgb
-
-    # Add Alpha channel (fully opaque)
-    alpha = 255
+    if len(rgb) == 3:
+        red, green, blue = rgb
+        # Add Alpha channel (fully opaque)
+        alpha = 255
+    else:
+        red, green, blue, alpha = rgb
 
     # Return RGBA values
     return red, green, blue, alpha
@@ -72,7 +74,10 @@ class ImageSegmentation:
         return im_array
 
     def infer(self, image: np.ndarray) -> np.ndarray:
-        # Prepare the input image
+        # Prepare the input image (always work with 3-channel BGR for inference)
+        if len(image.shape) == 3 and image.shape[2] == 4:
+            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+
         orig_im_size = image.shape[0:2]
 
         # Convert OpenCV image to PIL image

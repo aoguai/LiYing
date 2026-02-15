@@ -12,6 +12,7 @@ import shutil
 from functools import partial
 
 import cv2
+import numpy as np
 import gradio as gr
 import pandas as pd
 from PIL import Image
@@ -142,6 +143,35 @@ def parse_color(color_string):
     
     return [255, 255, 255]
 
+def composite_bgra_on_rgb(image, rgb_list):
+    """
+    Composite a BGRA image onto a solid RGB background, returning BGR.
+    This is used to preview/export different background colors without re-running the model.
+    """
+    if image is None:
+        return None
+
+    if not isinstance(image, np.ndarray):
+        raise TypeError("image must be a numpy.ndarray")
+
+    if not (isinstance(rgb_list, (list, tuple)) and len(rgb_list) == 3):
+        raise ValueError("rgb_list must be a list/tuple of three integers (R,G,B)")
+
+    # Already BGR
+    if len(image.shape) != 3 or image.shape[2] == 3:
+        return image
+
+    # Unexpected channels, fallback to first 3 channels
+    if image.shape[2] != 4:
+        return image[:, :, :3]
+
+    alpha = image[:, :, 3].astype(np.float32) / 255.0
+    fg = image[:, :, :3].astype(np.float32)
+    bg_bgr = np.array([rgb_list[2], rgb_list[1], rgb_list[0]], dtype=np.float32)
+
+    out = fg * alpha[..., None] + bg_bgr * (1.0 - alpha[..., None])
+    return out.astype(np.uint8)
+
 def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
@@ -155,21 +185,30 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
     
     # Get file size limits from CSV if enabled
     file_size_limits = {}
+
+    corrected_image_alpha = processor.photo.image
     
     if change_background:
-        processor.change_background()
+        # Always generate a transparent background result so the UI can
+        # composite different colors without re-running the model.
+        processor.change_background([255, 255, 255, 0])
+        corrected_image_alpha = processor.photo.image
 
     if resize:
         processor.resize_image(photo_type)
 
+    corrected_image_alpha = processor.photo.image
+    corrected_image_bgr = composite_bgra_on_rgb(corrected_image_alpha, rgb_list)
+
     sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
     sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
     generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+    photo_sheet_cv = generator.generate_photo_sheet(corrected_image_bgr, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
 
     return {
         'final_image': photo_sheet_cv,
-        'corrected_image': processor.photo.image,
+        'corrected_image': corrected_image_bgr,
+        'corrected_image_alpha': corrected_image_alpha,
         'file_size_limits': file_size_limits
     }
 
@@ -226,6 +265,8 @@ def create_demo(initial_language, deployment_mode):
         language = gr.State(initial_language)
         batch_final_images = gr.State([])
         batch_corrected_images = gr.State([])
+        batch_corrected_images_alpha = gr.State([])
+        batch_processed_paths = gr.State([])
         batch_download_offset = gr.State(0)
         batch_temp_dir = gr.State(None, delete_callback=cleanup_temp_dir)
 
@@ -424,6 +465,7 @@ def create_demo(initial_language, deployment_mode):
 
             final_images_rgb = []
             corrected_images_rgb = []
+            corrected_images_alpha = []
             processed_paths = []
             errors = []
 
@@ -454,6 +496,7 @@ def create_demo(initial_language, deployment_mode):
 
                 final_images_rgb.append(cv2.cvtColor(result['final_image'], cv2.COLOR_BGR2RGB))
                 corrected_images_rgb.append(cv2.cvtColor(result['corrected_image'], cv2.COLOR_BGR2RGB))
+                corrected_images_alpha.append(result.get('corrected_image_alpha'))
                 processed_paths.append(img_path)
 
             if errors:
@@ -464,7 +507,7 @@ def create_demo(initial_language, deployment_mode):
             if not processed_paths:
                 return None
 
-            return final_images_rgb, corrected_images_rgb, file_format, resolution, processed_paths
+            return final_images_rgb, corrected_images_rgb, corrected_images_alpha, file_format, resolution, processed_paths
 
         def process_and_display_wrapper(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                                 photo_type, photo_sheet_size, background_color, compress, change_background,
@@ -484,9 +527,9 @@ def create_demo(initial_language, deployment_mode):
             )
 
             if not result:
-                return None, None, None, None, [], [], 0, None
+                return None, None, None, None, [], [], [], [], 0, None
 
-            final_images, corrected_images, file_format, resolution, processed_paths = result
+            final_images, corrected_images, corrected_images_alpha, file_format, resolution, processed_paths = result
             current_file_format = file_format if file_format else 'png'
             current_resolution = resolution if resolution else 300
 
@@ -577,6 +620,157 @@ def create_demo(initial_language, deployment_mode):
                     download_corrected_value,
                     final_images,
                     corrected_images,
+                    corrected_images_alpha,
+                    processed_paths,
+                    offset,
+                    output_dir,
+                )
+            except Exception:
+                shutil.rmtree(output_dir, ignore_errors=True)
+                raise
+
+        def update_background_preview(background_color, photo_type, photo_sheet_size, compress, use_csv_size,
+                                      target_size, size_range_min, size_range_max, change_background, layout_only,
+                                      rotate, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
+                                      lang, corrected_images_alpha, processed_paths, final_images, corrected_images,
+                                      offset, previous_temp_dir):
+            """
+            Update preview/download outputs when only the background color changes.
+            This avoids re-running the background removal model by reusing cached alpha images.
+            """
+            nonlocal current_file_format, current_resolution
+
+            effective_change_background = change_background and not layout_only
+            if not effective_change_background:
+                return gr.update(), gr.update(), gr.update(), gr.update(), final_images, corrected_images, corrected_images_alpha, processed_paths, offset, previous_temp_dir
+
+            if not corrected_images_alpha or not processed_paths:
+                return gr.update(), gr.update(), gr.update(), gr.update(), final_images, corrected_images, corrected_images_alpha, processed_paths, offset, previous_temp_dir
+
+            if previous_temp_dir and os.path.exists(previous_temp_dir):
+                shutil.rmtree(previous_temp_dir, ignore_errors=True)
+
+            rgb_list = parse_color(background_color)
+
+            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+            file_format = sheet_info.get('file_format', 'png').lower()
+            if file_format == 'jpg':
+                file_format = 'jpeg'
+            resolution = sheet_info.get('resolution', 300)
+
+            current_file_format = file_format if file_format else 'png'
+            current_resolution = resolution if resolution else 300
+
+            # Rebuild corrected + sheet images (RGB for display)
+            sheet_width, sheet_height = sheet_info['width'], sheet_info['height']
+            generator = PhotoSheetGenerator((sheet_width, sheet_height), current_resolution)
+
+            final_images_rgb = []
+            corrected_images_rgb = []
+
+            for idx, img in enumerate(corrected_images_alpha):
+                corrected_bgr = composite_bgra_on_rgb(img, rgb_list)
+                corrected_images_rgb.append(cv2.cvtColor(corrected_bgr, cv2.COLOR_BGR2RGB))
+
+                sheet_bgr = generator.generate_photo_sheet(
+                    corrected_bgr,
+                    sheet_rows,
+                    sheet_cols,
+                    rotate,
+                    add_crop_lines,
+                    layout_position,
+                    photos_spacing
+                )
+                final_images_rgb.append(cv2.cvtColor(sheet_bgr, cv2.COLOR_BGR2RGB))
+
+            # Build file size limits for corrected image downloads (optional)
+            file_size_limits = {}
+            if compress:
+                if use_csv_size:
+                    file_size_limits = photo_requirements.get_file_size_limits(photo_type)
+                else:
+                    validated_target_size = None
+                    validated_size_range = None
+
+                    if target_size is not None and target_size > 0:
+                        validated_target_size = int(target_size)
+
+                    if size_range_min is not None and size_range_max is not None and size_range_min > 0 and size_range_max > 0:
+                        if size_range_min < size_range_max:
+                            validated_size_range = (int(size_range_min), int(size_range_max))
+                        else:
+                            gr.Warning(t('size_range_error', lang) if 'size_range_error' in TEXTS[lang] else "Min size must be less than max size")
+
+                    if validated_target_size and validated_size_range:
+                        gr.Warning(t('size_params_conflict', lang) if 'size_params_conflict' in TEXTS[lang] else "Both target size and size range provided. Using target size.")
+                        validated_size_range = None
+
+                    if validated_target_size:
+                        file_size_limits['target_size'] = validated_target_size
+                    elif validated_size_range:
+                        file_size_limits['size_range'] = validated_size_range
+
+            def sanitize_filename(name: str) -> str:
+                return re.sub(r'[<>:"/\\|?*]', '_', name)
+
+            output_dir = tempfile.mkdtemp(prefix="liying_webui_")
+            try:
+                final_paths = []
+                corrected_paths = []
+
+                for idx, img_path in enumerate(processed_paths):
+                    stem = sanitize_filename(Path(img_path).stem) or f"image_{idx + 1}"
+
+                    final_path = os.path.join(output_dir, f"{stem}_sheet.{current_file_format}")
+                    save_image(final_images_rgb[idx], final_path, current_file_format, current_resolution)
+                    final_paths.append(final_path)
+
+                    corrected_path = os.path.join(output_dir, f"{stem}_corrected.{current_file_format}")
+                    if compress and file_size_limits:
+                        tmp_path = os.path.join(output_dir, f"__tmp_{stem}_corrected.{current_file_format}")
+                        save_image(corrected_images_rgb[idx], tmp_path, current_file_format, current_resolution)
+                        ImageCompressor.compress_image(
+                            fp=Path(tmp_path),
+                            output=Path(corrected_path),
+                            force=True,
+                            **file_size_limits
+                        )
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    else:
+                        save_image(corrected_images_rgb[idx], corrected_path, current_file_format, current_resolution)
+                    corrected_paths.append(corrected_path)
+
+                if len(processed_paths) > 1:
+                    ts = int(time.time())
+                    final_zip_path = os.path.join(output_dir, f"batch_final_{ts}.zip")
+                    corrected_zip_path = os.path.join(output_dir, f"batch_corrected_{ts}.zip")
+
+                    with zipfile.ZipFile(final_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                        for fp in final_paths:
+                            zf.write(fp, arcname=os.path.basename(fp))
+
+                    with zipfile.ZipFile(corrected_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                        for fp in corrected_paths:
+                            zf.write(fp, arcname=os.path.basename(fp))
+
+                    download_final_value = [final_zip_path] + final_paths
+                    download_corrected_value = [corrected_zip_path] + corrected_paths
+                    offset = 1
+                else:
+                    download_final_value = final_paths[0]
+                    download_corrected_value = corrected_paths[0]
+                    offset = 0
+
+                return (
+                    final_images_rgb[0],
+                    corrected_images_rgb[0],
+                    download_final_value,
+                    download_corrected_value,
+                    final_images_rgb,
+                    corrected_images_rgb,
+                    corrected_images_alpha,
+                    processed_paths,
                     offset,
                     output_dir,
                 )
@@ -955,6 +1149,23 @@ def create_demo(initial_language, deployment_mode):
             outputs=[preset_color]
         )
 
+        # Background color preview: re-composite cached transparent result (no model re-run)
+        background_color.change(
+            update_background_preview,
+            inputs=[
+                background_color, photo_type, photo_sheet_size, compress, use_csv_size,
+                target_size, size_range_min, size_range_max, change_background, layout_only,
+                rotate, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
+                lang_dropdown, batch_corrected_images_alpha, batch_processed_paths,
+                batch_final_images, batch_corrected_images, batch_download_offset, batch_temp_dir
+            ],
+            outputs=[
+                output_image, corrected_output, download_final_file, download_corrected_file,
+                batch_final_images, batch_corrected_images, batch_corrected_images_alpha, batch_processed_paths,
+                batch_download_offset, batch_temp_dir
+            ]
+        )
+
         add_size_btn.click(add_size_config, inputs=[size_df], outputs=[size_df, config_notification])
         update_size_btn.click(update_size_config, inputs=[size_df], outputs=[size_df, config_notification])
 
@@ -981,7 +1192,8 @@ def create_demo(initial_language, deployment_mode):
                     target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
                     lang_dropdown, batch_temp_dir],
             outputs=[output_image, corrected_output, download_final_file, download_corrected_file,
-                     batch_final_images, batch_corrected_images, batch_download_offset, batch_temp_dir]
+                     batch_final_images, batch_corrected_images, batch_corrected_images_alpha, batch_processed_paths,
+                     batch_download_offset, batch_temp_dir]
         )
 
         def select_batch_result(evt: gr.SelectData, final_images, corrected_images, offset):
