@@ -187,6 +187,8 @@ Options:
   -sc, --sheet-cols INTEGER       Number of columns in the photo sheet
   -rt, --rotate / --no-rotate     Whether to rotate the photo by 90 degrees
   -rs, --resize / --no-resize     Whether to resize the image
+  --ratio-crop / --no-ratio-crop  Crop by photo print-size ratio without
+                                  resizing to electronic pixels
   -svr, --save-resized / --no-save-resized
                                   Whether to save the resized image
   -al, --add-crop-lines / --no-add-crop-lines
@@ -202,6 +204,7 @@ Options:
                                   2=top-right, 3=middle-left, 4=center,
                                   5=middle-right, 6=bottom-left, 7=bottom,
                                   8=bottom-right  [0<=x<=8]
+  --layout / --no-layout          Whether to generate a photo sheet
   -psp, --photos-spacing INTEGER  Pixel spacing between photos in the sheet
                                   (default: 0)
   --help                          Show this message and exit.

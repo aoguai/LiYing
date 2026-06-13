@@ -26,6 +26,8 @@
     "preset_color": "Preset Color",
     "custom_color": "Custom",
     "layout_only": "Layout only (no background change)",
+    "ratio_crop": "Crop by ratio",
+    "layout": "Generate photo sheet",
     "config_management": "Configuration Management",
     "size_config_table": "Size Configuration Table",
     "color_config_table": "Color Configuration Table",

@@ -26,6 +26,8 @@
     "preset_color": "预设颜色",
     "custom_color": "自定义",
     "layout_only": "仅排版（不更换背景）",
+    "ratio_crop": "按比例裁剪",
+    "layout": "生成排版图",
     "config_management": "配置管理",
     "size_config_table": "尺寸配置表",
     "color_config_table": "颜色配置表",

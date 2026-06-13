@@ -276,6 +276,34 @@ class ImageProcessor:
         
         return self.photo.image
 
+    def crop_to_photo_ratio(self, photo_type):
+        photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
+        requirements = self.photo_requirements_detector.config_manager.get_size_config(photo_type)
+
+        print_width = requirements.get('PrintWidth') if requirements else None
+        print_height = requirements.get('PrintHeight') if requirements else None
+
+        if print_width and print_height:
+            aspect_ratio = print_width / print_height
+        else:
+            aspect_ratio = photo_info['width'] / photo_info['height']
+
+        orig_height, orig_width = self.photo.image.shape[:2]
+
+        crop_width = orig_width
+        crop_height = int(crop_width / aspect_ratio)
+        if crop_height > orig_height:
+            crop_height = orig_height
+            crop_width = int(crop_height * aspect_ratio)
+
+        x_start = (orig_width - crop_width) // 2
+        y_start = 0
+        self.photo.image = self.photo.image[y_start:y_start + crop_height, x_start:x_start + crop_width]
+        self.photo.print_size = photo_info['print_size']
+        self.photo.resolution = photo_info['resolution']
+
+        return self.photo.image
+
     def save_photos(self, save_path: str, y_b=False, target_size=None, size_range=None) -> None:
         """
         Save the image to the specified path.

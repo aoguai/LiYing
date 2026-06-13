@@ -181,6 +181,7 @@ Options:
   -sc, --sheet-cols INTEGER       照片表格的列数
   -rt, --rotate / --no-rotate     是否旋转照片90度
   -rs, --resize / --no-resize     是否调整图像尺寸
+  --ratio-crop / --no-ratio-crop  按照片打印尺寸比例裁剪，不缩放到电子像素尺寸
   -svr, --save-resized / --no-save-resized
                                   是否保存调整尺寸后的图像
   -al, --add-crop-lines / --no-add-crop-lines
@@ -192,6 +193,7 @@ Options:
   -lp, --layout-position INTEGER RANGE
                                   布局位置(0-8)：0=左上，1=上，2=右上，3=左中，4=中，5=右中，6=左下，7
                                   =下，8=右下  [0<=x<=8]
+  --layout / --no-layout          是否生成照片排版图
   -psp, --photos-spacing INTEGER  照片间距（像素，默认0）
   --help                          Show this message and exit.
 ```

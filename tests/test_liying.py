@@ -4,6 +4,7 @@ import sys
 import unittest
 import warnings
 
+import numpy as np
 from PIL import Image
 
 # Add project root directory to Python path
@@ -47,6 +48,42 @@ class TestLiYing(unittest.TestCase):
     def check_image_dpi(self, image_path):
         with Image.open(image_path) as img:
             return img.info.get('dpi')
+
+    def test_crop_to_photo_ratio_preserves_max_pixels(self):
+        class FakeConfigManager:
+            @staticmethod
+            def get_size_config(photo_type):
+                return {'PrintWidth': 2.5, 'PrintHeight': 3.5}
+
+        class FakePhotoRequirements:
+            config_manager = FakeConfigManager()
+
+            @staticmethod
+            def get_resize_image_list(photo_type):
+                return {
+                    'width': 295,
+                    'height': 413,
+                    'print_size': '2.50cm x 3.50cm',
+                    'resolution': 300
+                }
+
+        class FakePhoto:
+            def __init__(self):
+                self.image = np.zeros((3744, 5616, 3), dtype=np.uint8)
+                self.print_size = None
+                self.resolution = None
+
+        processor = ImageProcessor.__new__(ImageProcessor)
+        processor.photo = FakePhoto()
+        processor.photo_requirements_detector = FakePhotoRequirements()
+
+        processor.crop_to_photo_ratio('One Inch')
+
+        height, width = processor.photo.image.shape[:2]
+        self.assertEqual((height, width), (3744, 2674))
+        self.assertNotEqual((height, width), (413, 295))
+        self.assertAlmostEqual(width / height, 2.5 / 3.5, places=3)
+        self.assertEqual(processor.photo.resolution, 300)
 
     def test_image_processor(self):
         missing_models = self.check_models_exist()
