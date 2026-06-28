@@ -32,12 +32,12 @@ class YOLOv8Detector:
         self.kpt_score = kpt_score
         self.nms_thr = nms_thr
 
-    def preprocess(self, img_path):
-        # Read the image
-        img = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), cv.IMREAD_UNCHANGED)
-        if img is None:
-            raise ValueError(f"Failed to read image from {img_path}")
-
+    @staticmethod
+    def _ensure_bgr_image(img):
+        if not isinstance(img, np.ndarray):
+            raise TypeError("Input image must be a numpy.ndarray")
+        if img.size == 0:
+            raise ValueError("Input image is empty")
         if img.ndim == 2:
             img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
         elif img.ndim == 3 and img.shape[2] == 4:
@@ -47,6 +47,10 @@ class YOLOv8Detector:
             img = cv.cvtColor(img[:, :, 0], cv.COLOR_GRAY2BGR)
         elif img.ndim != 3 or img.shape[2] != 3:
             raise ValueError(f"Unsupported image shape: {img.shape}")
+        return img
+
+    def preprocess_image(self, image):
+        img = self._ensure_bgr_image(image)
 
         input_w, input_h = self.input_size
         padded_img = np.ones((input_h, input_w, 3), dtype=np.uint8) * 114
@@ -57,6 +61,33 @@ class YOLOv8Detector:
         padded_img = padded_img.transpose((2, 0, 1))[::-1, ]
         padded_img = np.ascontiguousarray(padded_img, dtype=np.float32) / 255.0
         return padded_img, r, img
+
+    def preprocess(self, img_path):
+        # Read the image
+        img = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), cv.IMREAD_UNCHANGED)
+        if img is None:
+            raise ValueError(f"Failed to read image from {img_path}")
+
+        return self.preprocess_image(img)
+
+    def _run_inference(self, processed_image, ratio, original_image):
+        ort_input = {self.input_name: processed_image[None, :]}
+        output = self.session.run(None, ort_input)
+        result = self.postprocess(output, ratio)
+        return result, original_image
+
+    @staticmethod
+    def _extract_single_person(result):
+        boxes = result['boxes']
+        kpts = result['kpts']
+        if len(boxes) != 1:
+            return None
+
+        return {
+            'bbox_xyxy': boxes[0],
+            'bbox_label': 0,  # Assuming person class is 0
+            'bbox_keypoints': kpts[0],
+        }
 
     def postprocess(self, output, ratio):
         predict = output[0].squeeze(0).T
@@ -117,11 +148,21 @@ class YOLOv8Detector:
         Returns:
         results: Detection results.
         """
-        image, ratio, original_img = self.preprocess(img_path)
-        ort_input = {self.input_name: image[None, :]}
-        output = self.session.run(None, ort_input)
-        result = self.postprocess(output, ratio)
-        return result, original_img
+        processed_image, ratio, original_img = self.preprocess(img_path)
+        return self._run_inference(processed_image, ratio, original_img)
+
+    def detect_image(self, image):
+        """
+        Detect objects in an already-loaded image.
+
+        Parameters:
+        image (numpy.ndarray): Image data in OpenCV-compatible array format.
+
+        Returns:
+        results: Detection results.
+        """
+        processed_image, ratio, original_img = self.preprocess_image(image)
+        return self._run_inference(processed_image, ratio, original_img)
 
     def detect_person(self, img_path):
         """
@@ -135,21 +176,21 @@ class YOLOv8Detector:
               If more or fewer than one person is detected, returns None.
         """
         result, original_img = self.detect(img_path)
-        boxes = result['boxes']
-        # scores = result['scores']
-        kpts = result['kpts']
+        return self._extract_single_person(result), original_img
 
-        # Only handle cases where exactly one person is detected
-        if len(boxes) == 1:
-            bbox_xyxy = boxes[0]
-            bbox_label = 0  # Assuming person class is 0
-            bbox_keypoints = kpts[0]
-            return {
-                'bbox_xyxy': bbox_xyxy,
-                'bbox_label': bbox_label,
-                'bbox_keypoints': bbox_keypoints
-            }, original_img
-        return None, original_img
+    def detect_person_image(self, image):
+        """
+        Detect if there is only one person in an already-loaded image.
+
+        Parameters:
+        image (numpy.ndarray): Image data in OpenCV-compatible array format.
+
+        Returns:
+        dict: Contains the coordinates of the box, predicted class, coordinates of all keypoints, and confidence scores.
+              If more or fewer than one person is detected, returns None.
+        """
+        result, original_img = self.detect_image(image)
+        return self._extract_single_person(result), original_img
 
     def draw_result(self, img, result, with_label=False):
         boxes, kpts, scores = result['boxes'], result['kpts'], result['scores']

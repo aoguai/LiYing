@@ -131,6 +131,22 @@ class FaceDetector:
                            backend_id=backend_id,
                            target_id=target_id)
 
+    @staticmethod
+    def _ensure_bgr_image(image):
+        if not isinstance(image, np.ndarray):
+            raise TypeError("Input image must be a numpy.ndarray")
+        if image.size == 0:
+            raise ValueError("Input image is empty")
+        if image.ndim == 2:
+            return cv.cvtColor(image, cv.COLOR_GRAY2BGR)
+        if image.ndim == 3 and image.shape[2] == 4:
+            return cv.cvtColor(image, cv.COLOR_BGRA2BGR)
+        if image.ndim == 3 and image.shape[2] == 1:
+            return cv.cvtColor(image[:, :, 0], cv.COLOR_GRAY2BGR)
+        if image.ndim != 3 or image.shape[2] != 3:
+            raise ValueError(f"Unsupported image shape: {image.shape}")
+        return image
+
     def process_image(self, image_path, origin_size=False):
         """
         Process the image for face detection.
@@ -143,6 +159,22 @@ class FaceDetector:
         :rtype: numpy.ndarray
         """
         image = cv.imdecode(np.fromfile(image_path, dtype=np.uint8), cv.IMREAD_COLOR)
+        if image is None:
+            raise ValueError(f"Failed to read image from {image_path}")
+        return self.process_array(image, origin_size=origin_size)
+
+    def process_array(self, image, origin_size=False):
+        """
+        Process an already-loaded image for face detection.
+
+        :param image: Image array to be processed
+        :type image: numpy.ndarray
+        :param origin_size: Whether to keep the original size
+        :type origin_size: bool
+        :return: Detected face information
+        :rtype: numpy.ndarray
+        """
+        image = self._ensure_bgr_image(image)
         h, w, _ = image.shape
         target_size = 320
         max_size = 320

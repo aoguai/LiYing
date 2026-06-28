@@ -1,7 +1,7 @@
 import os
 import sys
 import cv2 as cv
-from PIL import Image, ExifTags
+from PIL import Image, ImageOps
 import numpy as np
 
 from .yolov8_detector import YOLOv8Detector
@@ -20,7 +20,7 @@ class PhotoEntity:
         :param y_b: Whether to compress the image, defaults to False
         """
         self.img_path = img_path
-        self.image = self._correct_image_orientation(img_path)
+        self.image = self._load_image(img_path)
         
         # Use default model paths if not provided
         if yolov8_model_path is None:
@@ -47,33 +47,22 @@ class PhotoEntity:
         self.resolution = None
         self.detect()
 
-    def _correct_image_orientation(self, image_path):
-        # Open the image and read EXIF information
-        image = Image.open(image_path)
-        try:
-            exif = image._getexif()
-            if exif is not None:
-                # Get EXIF tags
-                for tag, value in exif.items():
-                    if tag in ExifTags.TAGS:
-                        if ExifTags.TAGS[tag] == 'Orientation':
-                            orientation = value
-                            # Adjust the image based on orientation
-                            if orientation == 3:
-                                image = image.rotate(180, expand=True)
-                            elif orientation == 6:
-                                image = image.rotate(270, expand=True)
-                            elif orientation == 8:
-                                image = image.rotate(90, expand=True)
-        except (AttributeError, KeyError, IndexError) as e:
-            raise e
+    @staticmethod
+    def _to_bgr_image(image_np):
+        if image_np.ndim == 2:
+            return cv.cvtColor(image_np, cv.COLOR_GRAY2BGR)
+        if image_np.ndim == 3 and image_np.shape[2] == 4:
+            return cv.cvtColor(image_np, cv.COLOR_RGBA2BGR)
+        if image_np.ndim == 3 and image_np.shape[2] == 3:
+            return cv.cvtColor(image_np, cv.COLOR_RGB2BGR)
+        raise ValueError(f"Unsupported image shape: {image_np.shape}")
 
-        # Convert Pillow image object to OpenCV image object
-        image_np = np.array(image)
-        # OpenCV defaults to BGR format, so convert to RGB
-        image_np = cv.cvtColor(image_np, cv.COLOR_RGB2BGR)
+    def _load_image(self, image_path):
+        with Image.open(image_path) as image:
+            image = ImageOps.exif_transpose(image)
+            image_np = np.array(image)
 
-        return image_np
+        return self._to_bgr_image(image_np)
 
     def _compress_image(self):
         """
@@ -118,7 +107,7 @@ class PhotoEntity:
         """
         Detect persons in the image.
         """
-        person_result, original_img = self.yolov8_detector.detect_person(self.img_path)
+        person_result, _ = self.yolov8_detector.detect_person_image(self.image)
         if person_result:
             self.person_bbox = person_result['bbox_xyxy']
             self.person_label = person_result['bbox_label']
@@ -132,7 +121,7 @@ class PhotoEntity:
         """
         Detect faces in the image.
         """
-        face_results = self.face_detector.process_image(self.img_path)
+        face_results = self.face_detector.process_array(self.image)
         if not (face_results is None) and len(face_results) > 0:
             self.face_bbox = face_results[0][:4].astype('uint32')
             self.face_width = int(self.face_bbox[2]) - int(self.face_bbox[0])
@@ -165,7 +154,7 @@ class PhotoEntity:
         :param img_path: New image path
         """
         self.img_path = img_path
-        self.image = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), cv.IMREAD_COLOR)
+        self.image = self._load_image(img_path)
         self.detect()
 
     def set_yolov8_model_path(self, model_path):
