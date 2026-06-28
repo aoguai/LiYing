@@ -34,9 +34,19 @@ class YOLOv8Detector:
 
     def preprocess(self, img_path):
         # Read the image
-        img = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
+        img = cv.imdecode(np.fromfile(img_path, dtype=np.uint8), cv.IMREAD_UNCHANGED)
         if img is None:
             raise ValueError(f"Failed to read image from {img_path}")
+
+        if img.ndim == 2:
+            img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+        elif img.ndim == 3 and img.shape[2] == 4:
+            # YOLOv8 expects three color channels, so alpha must be dropped here.
+            img = cv.cvtColor(img, cv.COLOR_BGRA2BGR)
+        elif img.ndim == 3 and img.shape[2] == 1:
+            img = cv.cvtColor(img[:, :, 0], cv.COLOR_GRAY2BGR)
+        elif img.ndim != 3 or img.shape[2] != 3:
+            raise ValueError(f"Unsupported image shape: {img.shape}")
 
         input_w, input_h = self.input_size
         padded_img = np.ones((input_h, input_w, 3), dtype=np.uint8) * 114
