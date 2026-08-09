@@ -207,7 +207,19 @@ Options:
   --layout / --no-layout          Whether to generate a photo sheet
   -psp, --photos-spacing INTEGER  Pixel spacing between photos in the sheet
                                   (default: 0)
+  --face-height-ratio FLOAT       Face size (0-1, non-zero): larger value
+                                  makes the face larger; adjust this first
+                                  [default: 0.3]
+  --top-margin-ratio FLOAT        Top margin (0-1): larger value moves the
+                                  face down; adjust after face size  [default:
+                                  0.175]
   --help                          Show this message and exit.
+```
+
+Portrait composition can be adjusted separately by changing the face height and the amount of space above the head. For example, the following parameters will make the face larger and reduce the space above the head：
+
+```shell
+python main.py input.jpg --face-height-ratio 0.55 --top-margin-ratio 0.10
 ```
 
 ### 🗂 Configuration Files

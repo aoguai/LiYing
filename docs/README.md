@@ -195,7 +195,16 @@ Options:
                                   =下，8=右下  [0<=x<=8]
   --layout / --no-layout          是否生成照片排版图
   -psp, --photos-spacing INTEGER  照片间距（像素，默认0）
+  --face-height-ratio FLOAT       脸大小（0-1，不能为0）：越大脸越大；先调此项  [default: 0.3]
+  --top-margin-ratio FLOAT        头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项  [default:
+                                  0.175]
   --help                          Show this message and exit.
+```
+
+人像构图可通过人脸高度和头顶留白分别调整。例如，以下参数会让头像更大并减少头顶留白：
+
+```shell
+python main.py input.jpg --face-height-ratio 0.55 --top-margin-ratio 0.10
 ```
 
 ### 🗂 配置文件

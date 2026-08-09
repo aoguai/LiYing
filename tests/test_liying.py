@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(project_root, 'src'))
 sys.path.insert(0, os.path.join(project_root, 'src', 'tool'))
 
 from src.tool.ImageProcessor import ImageProcessor
+from src.tool.PhotoEntity import PhotoEntity
 from src.tool.PhotoSheetGenerator import PhotoSheetGenerator
 from src.tool.PhotoRequirements import PhotoRequirements
 from src.tool.ConfigManager import ConfigManager
@@ -84,6 +85,59 @@ class TestLiYing(unittest.TestCase):
         self.assertNotEqual((height, width), (413, 295))
         self.assertAlmostEqual(width / height, 2.5 / 3.5, places=3)
         self.assertEqual(processor.photo.resolution, 300)
+
+    def test_face_composition_crop_coordinates(self):
+        x1, x2, y1, y2 = ImageProcessor._get_photo_crop_coordinates(
+            (1000, 800), 0.75, (300, 300, 500, 500), 0.30, 0.175
+        )
+        crop_height = y2 - y1
+        self.assertEqual(x2 - x1, round(crop_height * 0.75))
+        self.assertAlmostEqual((300 - y1) / crop_height, 0.175, places=2)
+        self.assertAlmostEqual((400 - y1) / crop_height, 0.40, places=2)
+
+    def test_detect_face_converts_yunet_xywh_to_xyxy(self):
+        class FakeFaceDetector:
+            @staticmethod
+            def process_array(image):
+                return np.array([[10, 20, 30, 40, 0.99]], dtype=np.float32)
+
+        photo = PhotoEntity.__new__(PhotoEntity)
+        photo.image = np.zeros((100, 100, 3), dtype=np.uint8)
+        photo.face_detector = FakeFaceDetector()
+
+        photo.detect_face()
+
+        np.testing.assert_array_equal(photo.face_bbox, np.array([10, 20, 40, 60], dtype=np.uint32))
+        self.assertEqual(photo.face_width, 30)
+        self.assertEqual(photo.face_height, 40)
+
+    def test_face_composition_crop_changes_size_and_position(self):
+        default_crop = ImageProcessor._get_photo_crop_coordinates((1000, 800), 0.75, (300, 300, 500, 500), 0.30, 0.175)
+        larger_face_crop = ImageProcessor._get_photo_crop_coordinates((1000, 800), 0.75, (300, 300, 500, 500), 0.55, 0.10)
+        lower_face_crop = ImageProcessor._get_photo_crop_coordinates((1000, 800), 0.75, (300, 300, 500, 500), 0.30, 0.25)
+        self.assertLess(larger_face_crop[3] - larger_face_crop[2], default_crop[3] - default_crop[2])
+        self.assertLess(lower_face_crop[2], default_crop[2])
+
+    def test_face_composition_crop_clamps_and_falls_back_without_face(self):
+        x1, x2, y1, y2 = ImageProcessor._get_photo_crop_coordinates((100, 100), 0.75, (0, 0, 20, 20), 0.05, 0.90)
+        self.assertGreater(x2 - x1, 0)
+        self.assertGreater(y2 - y1, 0)
+        self.assertGreaterEqual(x1, 0)
+        self.assertGreaterEqual(y1, 0)
+        self.assertLessEqual(x2, 100)
+        self.assertLessEqual(y2, 100)
+        self.assertEqual(ImageProcessor._get_photo_crop_coordinates((100, 100), 0.75, None), (12, 87, 0, 100))
+
+    def test_face_composition_rejects_invalid_ratios(self):
+        for face_height_ratio, top_margin_ratio in ((0, 0), (-1, 0), (1.01, 0), (float('nan'), 0), (0.30, -1), (0.30, 1.01), (0.30, float('inf'))):
+            with self.assertRaises(ValueError):
+                ImageProcessor._validate_composition_ratios(face_height_ratio, top_margin_ratio)
+
+    def test_face_composition_rejects_invalid_face_bbox(self):
+        invalid_boxes = ((), (1, 2, 3), (1, 2, 3, float('nan')), (1, 2, 3, 2))
+        for face_bbox in invalid_boxes:
+            with self.assertRaises(ValueError):
+                ImageProcessor._get_photo_crop_coordinates((100, 100), 0.75, face_bbox)
 
     def test_image_processor(self):
         missing_models = self.check_models_exist()

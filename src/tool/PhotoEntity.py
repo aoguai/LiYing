@@ -123,7 +123,11 @@ class PhotoEntity:
         """
         face_results = self.face_detector.process_array(self.image)
         if not (face_results is None) and len(face_results) > 0:
-            self.face_bbox = face_results[0][:4].astype('uint32')
+            face_x, face_y, face_width, face_height = face_results[0][:4]
+            self.face_bbox = np.array(
+                [face_x, face_y, face_x + face_width, face_y + face_height],
+                dtype='uint32'
+            )
             self.face_width = int(self.face_bbox[2]) - int(self.face_bbox[0])
             self.face_height = int(self.face_bbox[3]) - int(self.face_bbox[1])
         else:

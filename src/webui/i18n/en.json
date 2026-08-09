@@ -71,5 +71,7 @@
     "layout_position_8": "Bottom-Right",
     "photos_spacing": "Photos Spacing (pixels)",
     "download_image": "Download Image",
-    "server_save_disabled": "Save to server is disabled in server deployment mode"
+    "server_save_disabled": "Save to server is disabled in server deployment mode",
+    "face_height_ratio": "Face Height Ratio",
+    "top_margin_ratio": "Top Margin Ratio"
 }

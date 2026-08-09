@@ -191,7 +191,7 @@ def resize_photo_for_layout(image, photo_requirements, photo_type):
     return cv2.resize(cropped_image, (width, height), interpolation=cv2.INTER_AREA)
 
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, ratio_crop=False, layout=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, ratio_crop=False, layout=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0, face_height_ratio=0.30, top_margin_ratio=0.175):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
@@ -215,9 +215,9 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
         corrected_image_alpha = processor.photo.image
 
     if ratio_crop:
-        processor.crop_to_photo_ratio(photo_type)
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
     elif resize:
-        processor.resize_image(photo_type)
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
 
     corrected_image_alpha = processor.photo.image
     corrected_image_bgr = composite_bgra_on_rgb(corrected_image_alpha, rgb_list)
@@ -358,6 +358,8 @@ def create_demo(initial_language, deployment_mode):
                         sheet_rows = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_rows', initial_language))
                         sheet_cols = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_cols', initial_language))
                         photos_spacing = gr.Slider(minimum=0, maximum=100, step=1, value=0, label=t('photos_spacing', initial_language))
+                        face_height_ratio = gr.Slider(minimum=0.01, maximum=1.0, step=0.01, value=0.30, label=t('face_height_ratio', initial_language))
+                        top_margin_ratio = gr.Slider(minimum=0.0, maximum=1.0, step=0.005, value=0.175, label=t('top_margin_ratio', initial_language))
                     
                     with gr.TabItem(t('advanced_settings', initial_language)) as advanced_settings_tab:
                         yolov8_path = gr.Textbox(label=t('yolov8_path', initial_language), value=DEFAULT_YOLOV8_PATH)
@@ -467,7 +469,7 @@ def create_demo(initial_language, deployment_mode):
         def process_and_display(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
                                         photo_sheet_size, background_color, compress, change_background, rotate, resize,
                                         ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                        layout_position, photos_spacing):
+                                        layout_position, photos_spacing, face_height_ratio, top_margin_ratio):
             """Process and display image(s) with given parameters (supports batch)."""
             # Update the configuration file path of ConfigManager
             config_manager.size_file = size_config
@@ -524,7 +526,9 @@ def create_demo(initial_language, deployment_mode):
                         sheet_cols=sheet_cols,
                         add_crop_lines=add_crop_lines,
                         layout_position=layout_position,
-                        photos_spacing=photos_spacing
+                        photos_spacing=photos_spacing,
+                        face_height_ratio=face_height_ratio,
+                        top_margin_ratio=top_margin_ratio
                     )
                 except Exception as e:
                     errors.append(f"{Path(img_path).name}: {str(e)}")
@@ -548,7 +552,7 @@ def create_demo(initial_language, deployment_mode):
         def process_and_display_wrapper(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                                 photo_type, photo_sheet_size, background_color, compress, change_background,
                                                 rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio,
                                                 lang, previous_temp_dir):
             """Wrapper for process_and_display that also prepares download files (supports batch)."""
             nonlocal current_file_format, current_resolution
@@ -560,7 +564,7 @@ def create_demo(initial_language, deployment_mode):
                 input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                 photo_type, photo_sheet_size, background_color, compress, change_background,
                 rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                layout_position, photos_spacing
+                layout_position, photos_spacing, face_height_ratio, top_margin_ratio
             )
 
             if not result:
@@ -972,6 +976,8 @@ def create_demo(initial_language, deployment_mode):
                        sheet_rows: gr.update(label=t('sheet_rows', lang)),
                        sheet_cols: gr.update(label=t('sheet_cols', lang)),
                        photos_spacing: gr.update(label=t('photos_spacing', lang)),
+                       face_height_ratio: gr.update(label=t('face_height_ratio', lang)),
+                       top_margin_ratio: gr.update(label=t('top_margin_ratio', lang)),
                        yolov8_path: gr.update(label=t('yolov8_path', lang)),
                        yunet_path: gr.update(label=t('yunet_path', lang)),
                        rmbg_path: gr.update(label=t('rmbg_path', lang)),
@@ -1183,7 +1189,7 @@ def create_demo(initial_language, deployment_mode):
                 size_config_tab, color_config_tab, result_tab, corrected_image_tab,
                 size_df, color_df, add_size_btn, update_size_btn,
                 add_color_btn, update_color_btn, config_notification,
-                size_option_type, language, layout_position]
+                size_option_type, language, layout_position, face_height_ratio, top_margin_ratio]
 
         lang_dropdown.change(
             update_language,
@@ -1249,7 +1255,7 @@ def create_demo(initial_language, deployment_mode):
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                     photo_type, photo_sheet_size, background_color, compress, change_background,
                     rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio,
                     lang_dropdown, batch_temp_dir],
             outputs=[output_image, corrected_output, download_final_file, download_corrected_file,
                      batch_final_images, batch_corrected_images, batch_corrected_images_alpha, batch_processed_paths,

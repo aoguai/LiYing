@@ -71,5 +71,7 @@
     "layout_position_8": "右下",
     "photos_spacing": "照片间距（像素）",
     "download_image": "下载图像",
-    "server_save_disabled": "服务器部署模式下已禁用保存到服务器功能"
+    "server_save_disabled": "服务器部署模式下已禁用保存到服务器功能",
+    "face_height_ratio": "脸部高度占比",
+    "top_margin_ratio": "头顶留白占比"
 }

@@ -178,14 +178,22 @@ def echo_message(key, **kwargs):
 @click.option('--layout/--no-layout', default=True,
               help='Whether to generate a photo sheet' if get_language() == 'en' else '是否生成照片排版图')
 @click.option('-psp', '--photos-spacing', type=int, default=0, help='Pixel spacing between photos in the sheet (default: 0)' if get_language() == 'en' else '照片间距（像素，默认0）')
+@click.option('--face-height-ratio', type=float, default=0.30, show_default=True,
+              help='Face size (0-1, non-zero): larger value makes the face larger; adjust this first' if get_language() == 'en' else '脸大小（0-1，不能为0）：越大脸越大；先调此项')
+@click.option('--top-margin-ratio', type=float, default=0.175, show_default=True,
+              help='Top margin (0-1): larger value moves the face down; adjust after face size' if get_language() == 'en' else '头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项')
 def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
         photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
         sheet_cols, rotate, resize, ratio_crop, save_resized, add_crop_lines, target_size, size_range, use_csv_size,
-        layout_position, layout, photos_spacing):
+        layout_position, layout, photos_spacing, face_height_ratio, top_margin_ratio):
     # Parameter validation
     if target_size is not None and size_range is not None:
         warnings.warn("Both target_size and size_range are provided. Using target_size and ignoring size_range.")
         size_range = None
+    try:
+        ImageProcessor._validate_composition_ratios(face_height_ratio, top_margin_ratio)
+    except ValueError as error:
+        raise click.BadParameter(str(error)) from error
         
     # Create processing helpers
     photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
@@ -220,9 +228,9 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
 
     # Optional size processing
     if ratio_crop:
-        processor.crop_to_photo_ratio(photo_type)
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
     elif resize:
-        processor.resize_image(photo_type)
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
         if save_resized:
             resized_path = os.path.splitext(save_path)[0] + '_resized' + os.path.splitext(save_path)[1]
             processor.save_photos(resized_path, compress, **file_size_limits)

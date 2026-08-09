@@ -330,7 +330,89 @@ class ImageProcessor:
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo
 
-    def resize_image(self, photo_type):
+    @staticmethod
+    def _validate_composition_ratios(face_height_ratio, top_margin_ratio):
+        values = {
+            'face_height_ratio': face_height_ratio,
+            'top_margin_ratio': top_margin_ratio,
+        }
+        for name, value in values.items():
+            if not isinstance(value, (int, float)) or not np.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
+        if face_height_ratio <= 0:
+            raise ValueError("face_height_ratio must be greater than 0")
+        if face_height_ratio > 1:
+            raise ValueError("face_height_ratio must be less than or equal to 1")
+        if top_margin_ratio < 0:
+            raise ValueError("top_margin_ratio must be greater than or equal to 0")
+        if top_margin_ratio > 1:
+            raise ValueError("top_margin_ratio must be less than or equal to 1")
+
+    @classmethod
+    def _get_photo_crop_coordinates(cls, image_shape, aspect_ratio, face_bbox=None,
+                                    face_height_ratio=0.30, top_margin_ratio=0.175):
+        """Return a target-ratio crop anchored by a detected face when available."""
+        if not isinstance(image_shape, tuple) or len(image_shape) != 2:
+            raise ValueError("The image size format is incorrect")
+        if any(not isinstance(value, (int, np.integer)) or value <= 0 for value in image_shape):
+            raise ValueError(f"Image dimensions must be positive, got {image_shape}")
+        if not isinstance(aspect_ratio, (int, float)) or not np.isfinite(aspect_ratio) or aspect_ratio <= 0:
+            raise ValueError("aspect_ratio must be a finite number greater than 0")
+
+        height, width = image_shape
+        crop_width = width
+        crop_height = int(crop_width / aspect_ratio)
+        if crop_height > height:
+            crop_height = height
+            crop_width = int(crop_height * aspect_ratio)
+        if crop_width <= 0 or crop_height <= 0:
+            raise ValueError(
+                f"Target ratio {aspect_ratio} cannot produce a non-empty crop for image size {width}x{height}"
+            )
+
+        x_start = (width - crop_width) // 2
+        y_start = 0
+        if face_bbox is None:
+            return x_start, x_start + crop_width, y_start, y_start + crop_height
+
+        cls._validate_composition_ratios(face_height_ratio, top_margin_ratio)
+        if not isinstance(face_bbox, (tuple, list, np.ndarray)) or len(face_bbox) != 4:
+            raise ValueError(f"Detected face bbox must contain four coordinates, got {face_bbox!r}")
+        try:
+            face_x1, face_y1, face_x2, face_y2 = map(float, face_bbox)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"Detected face bbox contains non-numeric coordinates: {face_bbox!r}") from error
+        if not all(np.isfinite(value) for value in (face_x1, face_y1, face_x2, face_y2)):
+            raise ValueError(f"Detected face bbox contains non-finite coordinates: {face_bbox!r}")
+        face_height = face_y2 - face_y1
+        if face_height <= 0:
+            raise ValueError(f"Detected face bbox has non-positive height: {face_bbox!r}")
+
+        desired_crop_height = face_height / face_height_ratio
+        desired_crop_width = desired_crop_height * aspect_ratio
+        if not np.isfinite(desired_crop_height) or not np.isfinite(desired_crop_width):
+            raise ValueError("Face composition parameters produce an invalid crop size")
+        scale = min(1.0, width / desired_crop_width, height / desired_crop_height)
+        crop_height = max(1, min(height, int(round(desired_crop_height * scale))))
+        crop_width = max(1, min(width, int(round(crop_height * aspect_ratio))))
+        if crop_width > width:
+            crop_width = width
+            crop_height = max(1, min(height, int(round(crop_width / aspect_ratio))))
+        if crop_width <= 0 or crop_height <= 0 or crop_width > width or crop_height > height:
+            raise ValueError(
+                f"Face composition parameters cannot produce a valid crop for image size {width}x{height}"
+            )
+
+        face_center_x = (face_x1 + face_x2) / 2
+        x_start = int(round(face_center_x - crop_width / 2))
+        y_start = int(round(face_y1 - crop_height * top_margin_ratio))
+        x_start = min(max(x_start, 0), width - crop_width)
+        y_start = min(max(y_start, 0), height - crop_height)
+        if x_start < 0 or y_start < 0 or x_start + crop_width > width or y_start + crop_height > height:
+            raise ValueError("Calculated face crop is outside the image bounds")
+        return x_start, x_start + crop_width, y_start, y_start + crop_height
+
+    def resize_image(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
         # Get the target dimensions and other info
         photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
         width, height = photo_info['width'], photo_info['height']
@@ -342,23 +424,15 @@ class ImageProcessor:
         is_width_multiple = (orig_width % width == 0) if orig_width >= width else (width % orig_width == 0)
         is_height_multiple = (orig_height % height == 0) if orig_height >= height else (height % orig_height == 0)
         
-        if is_width_multiple and is_height_multiple:
+        if is_width_multiple and is_height_multiple and self.photo.face_bbox is None:
             # Resize the image proportionally
             self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
             return self.photo.image
 
-        def get_crop_coordinates(original_size, aspect_ratio):
-            original_width, original_height = original_size
-            crop_width = original_width
-            crop_height = int(crop_width / aspect_ratio)
-            if crop_height > original_height:
-                crop_height = original_height
-                crop_width = int(crop_height * aspect_ratio)
-            x_start = (original_width - crop_width) // 2
-            y_start = 0
-            return x_start, x_start + crop_width, y_start, y_start + crop_height
-
-        x1, x2, y1, y2 = get_crop_coordinates((orig_width, orig_height), width / height)
+        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
+            (orig_height, orig_width), width / height, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio
+        )
         cropped_image = self.photo.image[y1:y2, x1:x2]
         
         # Update the PhotoEntity object's image
@@ -373,7 +447,7 @@ class ImageProcessor:
         
         return self.photo.image
 
-    def crop_to_photo_ratio(self, photo_type):
+    def crop_to_photo_ratio(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
         photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
         requirements = self.photo_requirements_detector.config_manager.get_size_config(photo_type)
 
@@ -387,15 +461,11 @@ class ImageProcessor:
 
         orig_height, orig_width = self.photo.image.shape[:2]
 
-        crop_width = orig_width
-        crop_height = int(crop_width / aspect_ratio)
-        if crop_height > orig_height:
-            crop_height = orig_height
-            crop_width = int(crop_height * aspect_ratio)
-
-        x_start = (orig_width - crop_width) // 2
-        y_start = 0
-        self.photo.image = self.photo.image[y_start:y_start + crop_height, x_start:x_start + crop_width]
+        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
+            (orig_height, orig_width), aspect_ratio, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio
+        )
+        self.photo.image = self.photo.image[y1:y2, x1:x2]
         self.photo.print_size = photo_info['print_size']
         self.photo.resolution = photo_info['resolution']
 

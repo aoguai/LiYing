@@ -102,6 +102,14 @@ if /i "!resize!"=="no" || /i "!resize!"=="n" (
 set /p "photo_sheet_size=Enter photo sheet size (default is five_inch): "
 if "!photo_sheet_size!"=="" set photo_sheet_size=five_inch
 
+set /p "face_height_ratio=Enter face height ratio of the final photo (default 0.30; larger values make the face larger): "
+if "!face_height_ratio!"=="" set face_height_ratio=0.30
+set face_height_ratio=--face-height-ratio !face_height_ratio!
+
+set /p "top_margin_ratio=Enter top-of-head margin ratio (default 0.175; larger values move the face down): "
+if "!top_margin_ratio!"=="" set top_margin_ratio=0.175
+set top_margin_ratio=--top-margin-ratio !top_margin_ratio!
+
 set /p "compress=Compress images (yes/no, default is no): "
 if /i "!compress!"=="yes" || /i "!compress!"=="y" (
     set compress=--compress
@@ -179,7 +187,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
 
         REM Execute Python script to process the image
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
     )
 ) else (
     REM If it's a file, process the file directly
@@ -188,7 +196,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
 
     REM Due to setlocal enabledelayedexpansion, use !variable_name! to reference variables
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
 )
 
 pause
