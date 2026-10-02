@@ -6,11 +6,12 @@ import numpy as np
 
 from .yolov8_detector import YOLOv8Detector
 from .YuNet import FaceDetector
+from .RetinaFaceDetector import get_retinaface_detector
 from .agpic import ImageCompressor
 
 
 class PhotoEntity:
-    def __init__(self, img_path, yolov8_model_path=None, yunet_model_path=None, y_b=False):
+    def __init__(self, img_path, yolov8_model_path=None, yunet_model_path=None, y_b=False, face_detector_type='yunet'):
         """
         Initialize the PhotoEntity class.
 
@@ -18,6 +19,7 @@ class PhotoEntity:
         :param yolov8_model_path: Path to the YOLOv8 model
         :param yunet_model_path: Path to the YuNet model
         :param y_b: Whether to compress the image, defaults to False
+        :param face_detector_type: Face detector for the layout pipeline, 'yunet' (default) or 'retinaface'
         """
         self.img_path = img_path
         self.image = self._load_image(img_path)
@@ -29,7 +31,11 @@ class PhotoEntity:
             yunet_model_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'model', 'face_detection_yunet_2023mar.onnx')
             
         self.yolov8_detector = YOLOv8Detector(yolov8_model_path)
-        self.face_detector = FaceDetector(yunet_model_path)
+        if face_detector_type == 'retinaface':
+            retinaface_model_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'model', 'face_detector.onnx')
+            self.face_detector = get_retinaface_detector(retinaface_model_path)
+        else:
+            self.face_detector = FaceDetector(yunet_model_path)
         self.ImageCompressor_detector = ImageCompressor()
         if y_b:
             self._compress_image()

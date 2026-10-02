@@ -119,11 +119,14 @@ Download the models used by the project and place them in `LiYing/src/model`, or
 
 | Purpose                   | Model Name        | Download Link                                                                                                                                           | Source                                                     |
 |---------------------------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
-| Face Recognition          | Yunnet            | [Download Link](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx)                           | [Yunnet](https://github.com/ShiqiYu/libfacedetection)      |
+| Face Recognition          | Yunnet / Retinaface (optional for layout, required for skin retouching) | [Yunnet Download Link](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx) / [Retinaface Project Link](https://github.com/biubug6/Pytorch_Retinaface) | [Yunnet](https://github.com/ShiqiYu/libfacedetection) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 | Subject Recognition and Background Replacement | RMBG-1.4/2.0 | [1.4 Download Link](https://huggingface.co/briaai/RMBG-1.4/blob/main/onnx/model.onnx)/[2.0 Download Link](https://huggingface.co/briaai/RMBG-2.0/tree/main/onnx) | [BRIA AI](https://huggingface.co/briaai)         |
 | Body Recognition          | yolov8n-pose      | [Download Link](https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n-pose.pt)                                                         | [ultralytics](https://github.com/ultralytics/ultralytics) |
+| Skin Retouching           | cv_unet_skin_retouching_torch / Retinaface | [Retouching Link](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary) / [Retinaface Project Link](https://github.com/biubug6/Pytorch_Retinaface) | [ModelScope damo](https://modelscope.cn/organization/damo) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 
 **Note: For the yolov8n-pose model, you need to export it to an ONNX model. Refer to the [official documentation](https://docs.ultralytics.com/integrations/onnx/) for instructions.**
+
+**Note: For the skin retouching feature, you can follow [skin-retouching-onnxruntime](https://github.com/aoguai/skin-retouching-onnxruntime) to export the ONNX models yourself and rename the exported `model.onnx` to `skin_retouch_mask.onnx`.**
 
 We also provide pre-converted ONNX models that you can download and use directly:
 
@@ -164,6 +167,10 @@ Usage: main.py [OPTIONS] IMG_PATH
 Options:
   -y, --yolov8-model-path PATH    Path to YOLOv8 model
   -u, --yunet-model-path PATH     Path to YuNet model
+  --face-detector [yunet|retinaface]
+                                  Face detector for the layout pipeline;
+                                  retinaface reuses the skin-retouching
+                                  face_detector.onnx  [default: yunet]
   -r, --rmbg-model-path PATH      Path to RMBG model
   -sz, --size-config PATH         Path to size configuration file
   -cl, --color-config PATH        Path to color configuration file
@@ -213,6 +220,15 @@ Options:
   --top-margin-ratio FLOAT        Top margin (0-1): larger value moves the
                                   face down; adjust after face size  [default:
                                   0.175]
+  --skin-retouch / --no-skin-retouch
+                                  Enable automatic skin retouching
+  --skin-retouch-model-dir PATH   Directory of skin retouching models
+                                  (skin_retouch_mask.onnx,
+                                  retouch_generator.onnx, face_detector.onnx)
+  --retouch-degree FLOAT RANGE    Skin retouching degree (0-1)  [default: 0.7;
+                                  0.0<=x<=1.0]
+  --whitening-degree FLOAT RANGE  Skin whitening degree (0-1)  [default: 0.8;
+                                  0.0<=x<=1.0]
   --help                          Show this message and exit.
 ```
 
@@ -328,6 +344,8 @@ Special thanks to the following projects and contributors for providing models a
 - [Yunnet](https://github.com/ShiqiYu/libfacedetection)
 - [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)
 - [ultralytics](https://github.com/ultralytics/ultralytics)
+- [cv_unet_skin_retouching_torch](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary)
+- [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface)
 
 You might also be interested in the image compression part, which is another open-source project of mine:
 

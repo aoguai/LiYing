@@ -126,6 +126,8 @@ def echo_message(key, **kwargs):
 @click.option('-u', '--yunet-model-path', type=click.Path(),
               default=os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx'),
               help='Path to YuNet model' if get_language() == 'en' else 'YuNet 模型路径')
+@click.option('--face-detector', type=click.Choice(['yunet', 'retinaface']), default='yunet', show_default=True,
+              help='Face detector for the layout pipeline; retinaface reuses the skin-retouching face_detector.onnx' if get_language() == 'en' else '排版用人脸检测模型；retinaface 复用美肤的 face_detector.onnx')
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
               default=os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
@@ -182,10 +184,20 @@ def echo_message(key, **kwargs):
               help='Face size (0-1, non-zero): larger value makes the face larger; adjust this first' if get_language() == 'en' else '脸大小（0-1，不能为0）：越大脸越大；先调此项')
 @click.option('--top-margin-ratio', type=float, default=0.175, show_default=True,
               help='Top margin (0-1): larger value moves the face down; adjust after face size' if get_language() == 'en' else '头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项')
-def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
-        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
+@click.option('--skin-retouch/--no-skin-retouch', default=False,
+              help='Enable automatic skin retouching' if get_language() == 'en' else '开启自动美肤')
+@click.option('--skin-retouch-model-dir', type=click.Path(),
+              default=MODEL_DIR,
+              help='Directory of skin retouching models (skin_retouch_mask.onnx, retouch_generator.onnx, face_detector.onnx)' if get_language() == 'en' else '美肤模型目录（需包含 skin_retouch_mask.onnx、retouch_generator.onnx、face_detector.onnx）')
+@click.option('--retouch-degree', type=click.FloatRange(0.0, 1.0), default=0.7, show_default=True,
+              help='Skin retouching degree (0-1)' if get_language() == 'en' else '磨皮程度（0-1）')
+@click.option('--whitening-degree', type=click.FloatRange(0.0, 1.0), default=0.8, show_default=True,
+              help='Skin whitening degree (0-1)' if get_language() == 'en' else '美白程度（0-1）')
+def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path,
+        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows,
         sheet_cols, rotate, resize, ratio_crop, save_resized, add_crop_lines, target_size, size_range, use_csv_size,
-        layout_position, layout, photos_spacing, face_height_ratio, top_margin_ratio):
+        layout_position, layout, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+        skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree):
     # Parameter validation
     if target_size is not None and size_range is not None:
         warnings.warn("Both target_size and size_range are provided. Using target_size and ignoring size_range.")
@@ -197,7 +209,8 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
         
     # Create processing helpers
     photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
-    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
+    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress,
+                               face_detector_type=face_detector)
     processor.photo_requirements_detector = photo_requirements
     
     # Get file size limits from CSV if enabled
@@ -213,6 +226,11 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
     
     # Crop and correct image
     processor.crop_and_correct_image()
+    if skin_retouch:
+        # Retouch on the 3-channel BGR result before any background replacement
+        from tool.SkinRetouch import retouch_image
+        processor.photo.image = retouch_image(
+            processor.photo.image, skin_retouch_model_dir, retouch_degree, whitening_degree)
     if save_corrected:
         corrected_path = os.path.splitext(save_path)[0] + '_corrected' + os.path.splitext(save_path)[1]
         processor.save_photos(corrected_path, compress, **file_size_limits)

@@ -24,7 +24,8 @@ class ImageProcessor:
                  yunet_model_path=None,
                  RMBG_model_path=None,
                  rgb_list=None,
-                 y_b=False):
+                 y_b=False,
+                 face_detector_type='yunet'):
         """
         Initialize ImageProcessor instance
 
@@ -33,6 +34,7 @@ class ImageProcessor:
         :param yunet_model_path: Path to the YuNet model
         :param RMBG_model_path: Path to the RMBG model
         :param rgb_list: List of rgb channel values for image composition
+        :param face_detector_type: Face detector for the layout pipeline, 'yunet' (default) or 'retinaface'
         """
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image path does not exist: {img_path}")
@@ -48,12 +50,12 @@ class ImageProcessor:
         # Check if model files exist
         if not os.path.exists(yolov8_model_path):
             raise FileNotFoundError(f"YOLOv8 model path does not exist: {yolov8_model_path}")
-        if not os.path.exists(yunet_model_path):
+        if face_detector_type != 'retinaface' and not os.path.exists(yunet_model_path):
             raise FileNotFoundError(f"YuNet model path does not exist: {yunet_model_path}")
         if not os.path.exists(RMBG_model_path):
             raise FileNotFoundError(f"RMBG model path does not exist: {RMBG_model_path}")
 
-        self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b)
+        self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b, face_detector_type)
         self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[1024, 1024],
                                            rgb_list=rgb_list if rgb_list is not None else [255, 255, 255])
         self.photo_requirements_detector = PhotoRequirements()

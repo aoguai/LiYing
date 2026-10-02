@@ -44,6 +44,10 @@
     "size_config_row_added": "New row added to size configuration",
     "color_config_row_added": "New row added to color configuration",
     "add_crop_lines": "Add crop lines",
+    "skin_retouch": "Enable skin retouching",
+    "skin_retouch_model_dir": "Skin Retouching Models Directory",
+    "retouch_degree": "Retouching Degree",
+    "whitening_degree": "Whitening Degree",
     "save_image": "Save Image",
     "save_corrected": "Save Corrected Image",
     "save_path": "Save Path",
@@ -73,5 +77,6 @@
     "download_image": "Download Image",
     "server_save_disabled": "Save to server is disabled in server deployment mode",
     "face_height_ratio": "Face Height Ratio",
-    "top_margin_ratio": "Top Margin Ratio"
+    "top_margin_ratio": "Top Margin Ratio",
+    "face_detector": "Face Detector (YuNet / RetinaFace)"
 }

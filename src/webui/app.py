@@ -191,17 +191,26 @@ def resize_photo_for_layout(image, photo_requirements, photo_type):
     return cv2.resize(cropped_image, (width, height), interpolation=cv2.INTER_AREA)
 
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, ratio_crop=False, layout=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0, face_height_ratio=0.30, top_margin_ratio=0.175):
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, ratio_crop=False, layout=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0, face_height_ratio=0.30, top_margin_ratio=0.175, face_detector='yunet', skin_retouch=False, skin_retouch_model_dir=MODEL_DIR, retouch_degree=0.7, whitening_degree=0.8):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
                             yunet_model_path=yunet_path,
                             RMBG_model_path=rmbg_path,
                             rgb_list=rgb_list, 
-                            y_b=compress)
+                            y_b=compress,
+                            face_detector_type=face_detector)
     processor.photo_requirements_detector = photo_requirements
 
     processor.crop_and_correct_image()
+
+    if skin_retouch:
+        # Retouch on the 3-channel BGR result before any background
+        # replacement, so the transparent-background cache stays valid.
+        from tool.SkinRetouch import retouch_image
+        processor.photo.image = retouch_image(
+            processor.photo.image, skin_retouch_model_dir, retouch_degree, whitening_degree)
+
     
     # Get file size limits from CSV if enabled
     file_size_limits = {}
@@ -364,6 +373,7 @@ def create_demo(initial_language, deployment_mode):
                     with gr.TabItem(t('advanced_settings', initial_language)) as advanced_settings_tab:
                         yolov8_path = gr.Textbox(label=t('yolov8_path', initial_language), value=DEFAULT_YOLOV8_PATH)
                         yunet_path = gr.Textbox(label=t('yunet_path', initial_language), value=DEFAULT_YUNET_PATH)
+                        face_detector = gr.Radio(choices=['yunet', 'retinaface'], value='yunet', label=t('face_detector', initial_language))
                         rmbg_path = gr.Textbox(label=t('rmbg_path', initial_language), value=DEFAULT_RMBG_PATH)
                         size_config = gr.Textbox(label=t('size_config', initial_language), value=DEFAULT_SIZE_CONFIG.format(initial_language))
                         color_config = gr.Textbox(label=t('color_config', initial_language), value=DEFAULT_COLOR_CONFIG.format(initial_language))
@@ -372,6 +382,10 @@ def create_demo(initial_language, deployment_mode):
                         rotate = gr.Checkbox(label=t('rotate', initial_language), value=False)
                         resize = gr.Checkbox(label=t('resize', initial_language), value=True)
                         add_crop_lines = gr.Checkbox(label=t('add_crop_lines', initial_language), value=True)
+                        skin_retouch = gr.Checkbox(label=t('skin_retouch', initial_language), value=False)
+                        skin_retouch_model_dir = gr.Textbox(label=t('skin_retouch_model_dir', initial_language), value=MODEL_DIR)
+                        retouch_degree = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.7, label=t('retouch_degree', initial_language))
+                        whitening_degree = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.8, label=t('whitening_degree', initial_language))
                         
                         # Add file size limit control items
                         with gr.Row():
@@ -469,7 +483,8 @@ def create_demo(initial_language, deployment_mode):
         def process_and_display(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
                                         photo_sheet_size, background_color, compress, change_background, rotate, resize,
                                         ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                        layout_position, photos_spacing, face_height_ratio, top_margin_ratio):
+                                        layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                                        skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree):
             """Process and display image(s) with given parameters (supports batch)."""
             # Update the configuration file path of ConfigManager
             config_manager.size_file = size_config
@@ -528,7 +543,12 @@ def create_demo(initial_language, deployment_mode):
                         layout_position=layout_position,
                         photos_spacing=photos_spacing,
                         face_height_ratio=face_height_ratio,
-                        top_margin_ratio=top_margin_ratio
+                        top_margin_ratio=top_margin_ratio,
+                        face_detector=face_detector,
+                        skin_retouch=skin_retouch,
+                        skin_retouch_model_dir=skin_retouch_model_dir,
+                        retouch_degree=retouch_degree,
+                        whitening_degree=whitening_degree
                     )
                 except Exception as e:
                     errors.append(f"{Path(img_path).name}: {str(e)}")
@@ -552,7 +572,8 @@ def create_demo(initial_language, deployment_mode):
         def process_and_display_wrapper(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                                 photo_type, photo_sheet_size, background_color, compress, change_background,
                                                 rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio,
+                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                                                skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree,
                                                 lang, previous_temp_dir):
             """Wrapper for process_and_display that also prepares download files (supports batch)."""
             nonlocal current_file_format, current_resolution
@@ -564,7 +585,8 @@ def create_demo(initial_language, deployment_mode):
                 input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                 photo_type, photo_sheet_size, background_color, compress, change_background,
                 rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                layout_position, photos_spacing, face_height_ratio, top_margin_ratio
+                layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree
             )
 
             if not result:
@@ -978,6 +1000,7 @@ def create_demo(initial_language, deployment_mode):
                        photos_spacing: gr.update(label=t('photos_spacing', lang)),
                        face_height_ratio: gr.update(label=t('face_height_ratio', lang)),
                        top_margin_ratio: gr.update(label=t('top_margin_ratio', lang)),
+                       face_detector: gr.update(label=t('face_detector', lang)),
                        yolov8_path: gr.update(label=t('yolov8_path', lang)),
                        yunet_path: gr.update(label=t('yunet_path', lang)),
                        rmbg_path: gr.update(label=t('rmbg_path', lang)),
@@ -987,6 +1010,10 @@ def create_demo(initial_language, deployment_mode):
                        change_background: gr.update(label=t('change_background', lang)),
                        rotate: gr.update(label=t('rotate', lang)), resize: gr.update(label=t('resize', lang)),
                        add_crop_lines: gr.update(label=t('add_crop_lines', lang)),
+                       skin_retouch: gr.update(label=t('skin_retouch', lang)),
+                       skin_retouch_model_dir: gr.update(label=t('skin_retouch_model_dir', lang)),
+                       retouch_degree: gr.update(label=t('retouch_degree', lang)),
+                       whitening_degree: gr.update(label=t('whitening_degree', lang)),
                        use_csv_size: gr.update(label=t('use_csv_size', lang)),
                        target_size: gr.update(label=t('target_size', lang)),
                        size_range_min: gr.update(label=t('size_range_min', lang)),
@@ -1182,7 +1209,7 @@ def create_demo(initial_language, deployment_mode):
         
         lang_outputs = [title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color,
                 sheet_rows, sheet_cols, photos_spacing, layout_only, ratio_crop, layout, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
-                compress, change_background, rotate, resize, add_crop_lines, use_csv_size, target_size, size_range_min, size_range_max,
+                compress, change_background, rotate, resize, add_crop_lines, skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree, face_detector, use_csv_size, target_size, size_range_min, size_range_max,
                 process_btn, output_image, corrected_output, download_final_file, download_corrected_file,
                 notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
                 save_corrected_btn, save_corrected_path,
@@ -1255,7 +1282,8 @@ def create_demo(initial_language, deployment_mode):
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                     photo_type, photo_sheet_size, background_color, compress, change_background,
                     rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio,
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                    skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree,
                     lang_dropdown, batch_temp_dir],
             outputs=[output_image, corrected_output, download_final_file, download_corrected_file,
                      batch_final_images, batch_corrected_images, batch_corrected_images_alpha, batch_processed_paths,

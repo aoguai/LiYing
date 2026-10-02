@@ -150,6 +150,28 @@ if /i "!save_corrected!"=="yes" || /i "!save_corrected!"=="y" (
     set save_corrected=--no-save-corrected
 )
 
+set /p "skin_retouch=Enable skin retouching (yes/no, default is no): "
+if /i "!skin_retouch!"=="yes" || /i "!skin_retouch!"=="y" (
+    set skin_retouch=--skin-retouch
+    set /p "retouch_degree=Enter retouch degree 0-1 (default is 0.7): "
+    if "!retouch_degree!"=="" set retouch_degree=0.7
+    set retouch_degree=--retouch-degree !retouch_degree!
+    set /p "whitening_degree=Enter whitening degree 0-1 (default is 0.8): "
+    if "!whitening_degree!"=="" set whitening_degree=0.8
+    set whitening_degree=--whitening-degree !whitening_degree!
+    set /p "skin_retouch_model_dir=Enter skin retouch models directory (press Enter for default): "
+    if "!skin_retouch_model_dir!"=="" (
+        set skin_retouch_model_dir=
+    ) else (
+        set skin_retouch_model_dir=--skin-retouch-model-dir "!skin_retouch_model_dir!"
+    )
+) else (
+    set skin_retouch=
+    set retouch_degree=
+    set whitening_degree=
+    set skin_retouch_model_dir=
+)
+
 set /p "sheet_rows=Enter the number of rows in the photo sheet (default is 3): "
 if "!sheet_rows!"=="" set sheet_rows=3
 
@@ -187,7 +209,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
 
         REM Execute Python script to process the image
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
     )
 ) else (
     REM If it's a file, process the file directly
@@ -196,7 +218,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
 
     REM Due to setlocal enabledelayedexpansion, use !variable_name! to reference variables
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
 )
 
 pause

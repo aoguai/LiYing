@@ -118,11 +118,14 @@ pip install -r requirements.txt # 安装依赖
 
 | 用途                     | 模型名称              | 下载链接                                                                                                                                           | 来源                                                     |
 |------------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
-| 人脸识别                  | Yunnet            | [下载链接](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx)                           | [Yunnet](https://github.com/ShiqiYu/libfacedetection)  |
+| 人脸识别                  | Yunnet / Retinaface（排版可选，美肤必需） | [Yunnet 下载链接](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx) / [Retinaface 项目链接](https://github.com/biubug6/Pytorch_Retinaface) | [Yunnet](https://github.com/ShiqiYu/libfacedetection) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 | 主体识别替换背景              | RMBG-1.4/2.0 | [1.4 下载链接](https://huggingface.co/briaai/RMBG-1.4/blob/main/onnx/model.onnx)/[2.0 下载链接](https://huggingface.co/briaai/RMBG-2.0/tree/main/onnx) | [BRIA AI](https://huggingface.co/briaai)     |
 | 人体识别                  | yolov8n-pose      | [下载链接](https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n-pose.pt)                                                         | [ultralytics](https://github.com/ultralytics/ultralytics) |
+| 自动美肤                  | cv_unet_skin_retouching_torch / Retinaface | [磨皮下载链接](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary) / [Retinaface 项目链接](https://github.com/biubug6/Pytorch_Retinaface) | [ModelScope damo](https://modelscope.cn/organization/damo) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 
 **注： 对于 yolov8n-pose 模型，您需要将其导出为 ONNX 模型，您可以参考[官方文档](https://docs.ultralytics.com/integrations/onnx/)实现**
+
+**注： 对于自动美肤功能，您可以参照 [skin-retouching-onnxruntime](https://github.com/aoguai/skin-retouching-onnxruntime) 自行导出 ONNX 模型，将导出的 `model.onnx` 重命名为 `skin_retouch_mask.onnx`。**
 
 同时，我们提供了转换好的 ONNX 模型，您可以直接下载使用：
 
@@ -162,6 +165,9 @@ Usage: main.py [OPTIONS] IMG_PATH
 Options:
   -y, --yolov8-model-path PATH    YOLOv8 模型路径
   -u, --yunet-model-path PATH     YuNet 模型路径
+  --face-detector [yunet|retinaface]
+                                  排版用人脸检测模型；retinaface 复用美肤的
+                                  face_detector.onnx  [default: yunet]
   -r, --rmbg-model-path PATH      RMBG 模型路径
   -sz, --size-config PATH         尺寸配置文件路径
   -cl, --color-config PATH        颜色配置文件路径
@@ -198,6 +204,12 @@ Options:
   --face-height-ratio FLOAT       脸大小（0-1，不能为0）：越大脸越大；先调此项  [default: 0.3]
   --top-margin-ratio FLOAT        头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项  [default:
                                   0.175]
+  --skin-retouch / --no-skin-retouch
+                                  开启自动美肤
+  --skin-retouch-model-dir PATH   美肤模型目录（需包含 skin_retouch_mask.onnx、retouch_ge
+                                  nerator.onnx、face_detector.onnx）
+  --retouch-degree FLOAT RANGE    磨皮程度（0-1）  [default: 0.7; 0.0<=x<=1.0]
+  --whitening-degree FLOAT RANGE  美白程度（0-1）  [default: 0.8; 0.0<=x<=1.0]
   --help                          Show this message and exit.
 ```
 
@@ -315,6 +327,8 @@ http://127.0.0.1:7860
 - [Yunnet](https://github.com/ShiqiYu/libfacedetection)
 - [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)
 - [ultralytics](https://github.com/ultralytics/ultralytics)
+- [cv_unet_skin_retouching_torch](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary)
+- [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface)
 
 或许你会对图片压缩部分感兴趣，那是我另一个开源项目：
 

@@ -2,46 +2,46 @@
 set CLI_LANGUAGE=zh
 setlocal enabledelayedexpansion
 
-REM ï¿½ï¿½È¡ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ä¿Â¼
+REM »ñÈ¡µ±Ç°Åú´¦ÀíÎÄ¼þµÄÄ¿Â¼
 set SCRIPT_DIR=%~dp0
 
-REM ï¿½ï¿½ï¿½ï¿½Pythonï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Ä¿Â¼
+REM ÉèÖÃPython½âÊÍÆ÷Â·¾¶ºÍÏîÄ¿Ä¿Â¼
 set PYTHON_EXE=%SCRIPT_DIR%python-embed\python.exe
 set SCRIPT_PATH=%SCRIPT_DIR%src\main.py
 
-REM ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ä¿Â¼ï¿½ï¿½ï¿½Ï·ï¿½
+REM ¼ì²éÊÇ·ñÓÐÎÄ¼þ»òÄ¿Â¼±»ÍÏ·Å
 if "%~1"=="" (
-    echo ï¿½ë½«Í¼ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ä¿Â¼ï¿½Ï·Åµï¿½ï¿½Ë½Å±ï¿½ï¿½ï¿½
+    echo Çë½«Í¼ÏñÎÄ¼þ»òÄ¿Â¼ÍÏ·Åµ½´Ë½Å±¾ÉÏ
     pause
     exit /b
 )
 
-REM ï¿½ï¿½È¡ï¿½Ï·Åµï¿½Â·ï¿½ï¿½
+REM »ñÈ¡ÍÏ·ÅµÄÂ·¾¶
 set INPUT_PATH=%~1
 
 echo                  LiYing
 echo Github: https://github.com/aoguai/LiYing
-echo ï¿½ï¿½ï¿½ï¿½Ö¤: AGPL-3.0
+echo Ðí¿ÉÖ¤: AGPL-3.0
 echo ----------------------------------------
 
-REM ï¿½ï¿½Ê¾ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½Â·ï¿½ï¿½
-set /p "change_models=ï¿½Ç·ï¿½ï¿½Þ¸ï¿½Ä£ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ñ£©£ï¿½"
-if /i "!change_models!"=="ï¿½ï¿½" (
-    set /p "yolov8_path=ï¿½ï¿½ï¿½ï¿½ YOLOv8 Ä£ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ê¹ï¿½ï¿½Ä¬ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+REM ÌáÊ¾ÓÃ»§½øÐÐÄ£ÐÍÂ·¾¶
+set /p "change_models=ÊÇ·ñÐÞ¸ÄÄ£ÐÍÂ·¾¶£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©£º"
+if /i "!change_models!"=="ÊÇ" (
+    set /p "yolov8_path=ÊäÈë YOLOv8 Ä£ÐÍÂ·¾¶£¨Îª¿ÕÊ¹ÓÃÄ¬ÈÏÂ·¾¶£©£º"
     if "!yolov8_path!"=="" (
         set yolov8_param=
     ) else (
         set yolov8_param=--yolov8-model-path "!yolov8_path!"
     )
 
-    set /p "yunet_path=ï¿½ï¿½ï¿½ï¿½ YuNet Ä£ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ê¹ï¿½ï¿½Ä¬ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+    set /p "yunet_path=ÊäÈë YuNet Ä£ÐÍÂ·¾¶£¨Îª¿ÕÊ¹ÓÃÄ¬ÈÏÂ·¾¶£©£º"
     if "!yunet_path!"=="" (
         set yunet_param=
     ) else (
         set yunet_param=--yunet-model-path "!yunet_path!"
     )
 
-    set /p "rmbg_path=ï¿½ï¿½ï¿½ï¿½ RMBG Ä£ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ê¹ï¿½ï¿½Ä¬ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+    set /p "rmbg_path=ÊäÈë RMBG Ä£ÐÍÂ·¾¶£¨Îª¿ÕÊ¹ÓÃÄ¬ÈÏÂ·¾¶£©£º"
     if "!rmbg_path!"=="" (
         set rmbg_param=
     ) else (
@@ -53,25 +53,25 @@ if /i "!change_models!"=="ï¿½ï¿½" (
     set rmbg_param=
 )
 
-REM ï¿½ï¿½Ê¾ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-set /p "layout_only=ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Ð²ï¿½ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-if /i "!layout_only!"=="ï¿½ï¿½" (
+REM ÌáÊ¾ÓÃ»§ÊäÈë²ÎÊý
+set /p "layout_only=ÊÇ·ñ½ö½øÐÐ²¼¾Ö¶ø²»¸ü¸Ä±³¾°£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+if /i "!layout_only!"=="ÊÇ" (
     set layout_only=--layout-only
     set change_background=--no-change-background
     set save_background=--no-save-background
     set rgb_list=255,255,255
 ) else (
     set layout_only=
-    set /p "change_background=ï¿½Ç·ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-    if /i "!change_background!"=="ï¿½ï¿½" (
+    set /p "change_background=ÊÇ·ñ¸ü¸Ä±³¾°£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+    if /i "!change_background!"=="ÊÇ" (
         set change_background=--change-background
-        set /p "rgb_list=ï¿½ï¿½ï¿½ï¿½RGBÍ¨ï¿½ï¿½Öµï¿½ï¿½ï¿½Ã¶ï¿½ï¿½Å·Ö¸ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½Îª255,255,255ï¿½ï¿½: "
-        if "!rgb_list!"=="ï¿½ï¿½" set rgb_list=255,0,0
-        if "!rgb_list!"=="ï¿½ï¿½" set rgb_list=12,92,165
-        if "!rgb_list!"=="ï¿½ï¿½" set rgb_list=255,255,255
+        set /p "rgb_list=ÊäÈëRGBÍ¨µÀÖµ£¨ÓÃ¶ººÅ·Ö¸ô£¬Ä¬ÈÏÎª255,255,255£©: "
+        if "!rgb_list!"=="ºì" set rgb_list=255,0,0
+        if "!rgb_list!"=="À¶" set rgb_list=12,92,165
+        if "!rgb_list!"=="°×" set rgb_list=255,255,255
         if "!rgb_list!"=="" set rgb_list=255,255,255
-        set /p "save_background=ï¿½Ç·ñ±£´ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-        if /i "!save_background!"=="ï¿½ï¿½" (
+        set /p "save_background=ÊÇ·ñ±£´æ¸ü¸Ä±³¾°ºóµÄÍ¼Ïñ£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+        if /i "!save_background!"=="ÊÇ" (
             set save_background=--save-background
         ) else (
             set save_background=--no-save-background
@@ -83,46 +83,46 @@ if /i "!layout_only!"=="ï¿½ï¿½" (
     )
 )
 
-set /p "resize=ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½Ç£ï¿½: "
-if /i "!resize!"=="ï¿½ï¿½" (
+set /p "resize=ÊÇ·ñµ÷ÕûÍ¼Ïñ´óÐ¡£¨ÊÇ/·ñ£¬Ä¬ÈÏÎªÊÇ£©: "
+if /i "!resize!"=="·ñ" (
     set resize=--no-resize
     set save_resized=--no-save-resized
 ) else (
     set resize=--resize
-    set /p "save_resized=ï¿½Ç·ñ±£´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-    if /i "!save_resized!"=="ï¿½ï¿½" (
+    set /p "save_resized=ÊÇ·ñ±£´æµ÷Õû´óÐ¡ºóµÄÍ¼Ïñ£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+    if /i "!save_resized!"=="ÊÇ" (
         set save_resized=--save-resized
     ) else (
         set save_resized=--no-save-resized
     )
-    set /p "photo_type=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½Í£ï¿½Ä¬ï¿½ï¿½ÎªÒ»ï¿½ç£©: "
-    if "!photo_type!"=="" set photo_type=Ò»ï¿½ï¿½
+    set /p "photo_type=ÊäÈëÕÕÆ¬ÀàÐÍ£¨Ä¬ÈÏÎªÒ»´ç£©: "
+    if "!photo_type!"=="" set photo_type=Ò»´ç
 )
 
-set /p "photo_sheet_size=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½ç£©: "
-if "!photo_sheet_size!"=="" set photo_sheet_size=ï¿½ï¿½ï¿½
+set /p "photo_sheet_size=ÊäÈëÕÕÆ¬±í¸ñ´óÐ¡£¨Ä¬ÈÏÎªÎå´ç£©: "
+if "!photo_sheet_size!"=="" set photo_sheet_size=Îå´ç
 
-set /p "face_height_ratio=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¶0.30Æ¬ï¿½ß¶È±ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ 0.45ï¿½ï¿½ï¿½ï¿½ÖµÔ½ï¿½ï¿½Í·ï¿½ï¿½Ô½ï¿½ó£©£ï¿½"
+set /p "face_height_ratio=ÊäÈëÁ³´óÐ¡±ÈÀý£¨0-1£¬Ä¬ÈÏÎª0.30£¬Ô½´óÁ³Ô½´ó£»ÏÈµ÷´ËÏî£©: "
 if "!face_height_ratio!"=="" set face_height_ratio=0.30
 set face_height_ratio=--face-height-ratio !face_height_ratio!
 
-set /p "top_margin_ratio=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×±ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ 0.175ï¿½ï¿½ï¿½ï¿½ÖµÔ½ï¿½ï¿½Í·ï¿½ï¿½Ô½ï¿½ï¿½ï¿½Æ£ï¿½ï¿½ï¿½"
+set /p "top_margin_ratio=ÊäÈëÍ·¶¥Áô°×±ÈÀý£¨0-1£¬Ä¬ÈÏÎª0.175£¬Ô½´óÁ³Ô½ÏÂÒÆ£»Á³´óÐ¡ºÏÊÊºóÔÙµ÷´ËÏî£©: "
 if "!top_margin_ratio!"=="" set top_margin_ratio=0.175
 set top_margin_ratio=--top-margin-ratio !top_margin_ratio!
 
-set /p "compress=ï¿½Ç·ï¿½Ñ¹ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-if /i "!compress!"=="ï¿½ï¿½" (
+set /p "compress=ÊÇ·ñÑ¹ËõÍ¼Ïñ£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+if /i "!compress!"=="ÊÇ" (
     set compress=--compress
     set compress=--compress
-    set /p "use_csv_size=Ê¹ï¿½ï¿½CSVï¿½Ä¼ï¿½ï¿½Ä³ß´ï¿½ï¿½ï¿½ï¿½Æ£ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½Ç£ï¿½: "
-    if /i "!use_csv_size!"=="ï¿½ï¿½" (
+    set /p "use_csv_size=Ê¹ÓÃCSVÎÄ¼þµÄ³ß´çÏÞÖÆ£¨ÊÇ/·ñ£¬Ä¬ÈÏÎªÊÇ£©: "
+    if /i "!use_csv_size!"=="·ñ" (
         set use_csv_size=--no-use-csv-size
-        set /p "target_size=ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½KBï¿½ï¿½ï¿½ï¿½Ö±ï¿½Ó»Ø³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: "
+        set /p "target_size=ÊäÈëÄ¿±êÎÄ¼þ´óÐ¡£¨KB£©£¨Ö±½Ó»Ø³µÌø¹ý£©: "
         if "!target_size!"=="" (
             set target_size=
-            set /p "use_size_range=ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-            if /i "!use_size_range!"=="ï¿½ï¿½" (
-                set /p "size_range=ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Î§ï¿½ï¿½KBï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½Ð¡Öµ,ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ç£º10,20ï¿½ï¿½: "
+            set /p "use_size_range=ÊÇ·ñÉèÖÃÎÄ¼þ´óÐ¡·¶Î§£¿£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+            if /i "!use_size_range!"=="ÊÇ" (
+                set /p "size_range=ÊäÈëÎÄ¼þ´óÐ¡·¶Î§£¨KB£©£¨¸ñÊ½£º×îÐ¡Öµ,×î´óÖµ£¬ÀýÈç£º10,20£©: "
                 if "!size_range!"=="" (
                     set size_range=
                 ) else (
@@ -144,60 +144,82 @@ if /i "!compress!"=="ï¿½ï¿½" (
     set size_range=
 )
 
-set /p "save_corrected=ï¿½Ç·ñ±£´ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-if /i "!save_corrected!"=="ï¿½ï¿½" (
+set /p "save_corrected=ÊÇ·ñ±£´æÐ£ÕýºóµÄÍ¼Ïñ£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+if /i "!save_corrected!"=="ÊÇ" (
     set save_corrected=--save-corrected
 ) else (
     set save_corrected=--no-save-corrected
 )
 
-set /p "sheet_rows=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½Îª3ï¿½ï¿½: "
+set /p "skin_retouch=ÊÇ·ñ¿ªÆô×Ô¶¯ÃÀ·ô£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+if /i "!skin_retouch!"=="ÊÇ" (
+    set skin_retouch=--skin-retouch
+    set /p "retouch_degree=ÊäÈëÄ¥Æ¤³Ì¶È£¨0-1£¬Ä¬ÈÏÎª 0.7£©: "
+    if "!retouch_degree!"=="" set retouch_degree=0.7
+    set retouch_degree=--retouch-degree !retouch_degree!
+    set /p "whitening_degree=ÊäÈëÃÀ°×³Ì¶È£¨0-1£¬Ä¬ÈÏÎª 0.8£©: "
+    if "!whitening_degree!"=="" set whitening_degree=0.8
+    set whitening_degree=--whitening-degree !whitening_degree!
+    set /p "skin_retouch_model_dir=ÊäÈëÃÀ·ôÄ£ÐÍÄ¿Â¼£¨»Ø³µÊ¹ÓÃÄ¬ÈÏÂ·¾¶£©£º"
+    if "!skin_retouch_model_dir!"=="" (
+        set skin_retouch_model_dir=
+    ) else (
+        set skin_retouch_model_dir=--skin-retouch-model-dir "!skin_retouch_model_dir!"
+    )
+) else (
+    set skin_retouch=
+    set retouch_degree=
+    set whitening_degree=
+    set skin_retouch_model_dir=
+)
+
+set /p "sheet_rows=ÊäÈëÕÕÆ¬±í¸ñµÄÐÐÊý£¨Ä¬ÈÏÎª3£©: "
 if "!sheet_rows!"=="" set sheet_rows=3
 
-set /p "sheet_cols=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½Îª3ï¿½ï¿½: "
+set /p "sheet_cols=ÊäÈëÕÕÆ¬±í¸ñµÄÁÐÊý£¨Ä¬ÈÏÎª3£©: "
 if "!sheet_cols!"=="" set sheet_cols=3
 
-set /p "rotate=ï¿½Ç·ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½×ª90ï¿½È£ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½ï¿½: "
-if /i "!rotate!"=="ï¿½ï¿½" (
+set /p "rotate=ÊÇ·ñ½«ÕÕÆ¬Ðý×ª90¶È£¨ÊÇ/·ñ£¬Ä¬ÈÏÎª·ñ£©: "
+if /i "!rotate!"=="ÊÇ" (
     set rotate=--rotate
 ) else (
     set rotate=--no-rotate
 )
 
-set /p "add_crop_lines=ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½ï¿½ï¿½Ó²Ã¼ï¿½ï¿½ß£ï¿½ï¿½ï¿½/ï¿½ï¿½Ä¬ï¿½ï¿½Îªï¿½Ç£ï¿½ï¿½ï¿½ "
-if /i "!add_crop_lines!"=="ï¿½ï¿½" (
+set /p "add_crop_lines=ÔÚÏàÖ½ÉÏÌí¼Ó²Ã¼ôÏß£¨ÊÇ/·ñ£¬Ä¬ÈÏÎªÊÇ£©£º "
+if /i "!add_crop_lines!"=="·ñ" (
     set add_crop_lines=--no-add-crop-lines
 ) else (
     set add_crop_lines=--add-crop-lines
 )
 
-set /p "layout_position=ï¿½ï¿½ï¿½ë²¼ï¿½ï¿½Î»ï¿½Ã£ï¿½0-8ï¿½ï¿½Ä¬ï¿½ï¿½Îª 4ï¿½ï¿½0=ï¿½ï¿½ï¿½Ï½Ç£ï¿½1=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2=ï¿½ï¿½ï¿½Ï½Ç£ï¿½3=ï¿½ï¿½ï¿½Ð²ï¿½ï¿½ï¿½4=ï¿½Ð¼ä£¬5=ï¿½ï¿½ï¿½Ð²ï¿½ï¿½ï¿½6=ï¿½ï¿½ï¿½Â½Ç£ï¿½7=ï¿½×²ï¿½ï¿½ï¿½8=ï¿½ï¿½ï¿½Â½Ç£ï¿½ï¿½ï¿½"
+set /p "layout_position=ÊäÈë²¼¾ÖÎ»ÖÃ£¨0-8£¬Ä¬ÈÏÎª 4£¬0=×óÉÏ½Ç£¬1=¶¥²¿£¬2=ÓÒÉÏ½Ç£¬3=×óÖÐ²¿£¬4=ÖÐ¼ä£¬5=ÓÒÖÐ²¿£¬6=×óÏÂ½Ç£¬7=µ×²¿£¬8=ÓÒÏÂ½Ç£©£º"
 if "!layout_position!"=="" set layout_position=4
 set layout_position=--layout-position !layout_position!
 
-set /p "photos_spacing=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬Ö®ï¿½ï¿½Ä¼ï¿½ï¿½ (Ä¬ï¿½ï¿½Îª 0ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½): "
+set /p "photos_spacing=ÇëÊäÈëÕÕÆ¬Ö®¼äµÄ¼ä¾à (Ä¬ÈÏÎª 0£¬µ¥Î»£ºÏñËØ): "
 if "!photos_spacing!"=="" set photos_spacing=0
 set photos_spacing=--photos-spacing !photos_spacing!
 
-REM ï¿½ï¿½ï¿½ï¿½Ï·Åµï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Â¼
+REM ¼ì²éÍÏ·ÅµÄÏîÄ¿ÊÇÎÄ¼þ»¹ÊÇÄ¿Â¼
 if exist "%INPUT_PATH%\" (
-    REM ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½jpgï¿½ï¿½pngï¿½Ä¼ï¿½
+    REM Èç¹ûÊÇÄ¿Â¼£¬±éÀúÆäÖÐËùÓÐµÄjpgºÍpngÎÄ¼þ
     for %%f in ("%INPUT_PATH%\*.jpg" "%INPUT_PATH%\*.png") do (
-        REM ï¿½ï¿½È¡ï¿½Ä¼ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½
+        REM ÌáÈ¡ÎÄ¼þ¼ÐÂ·¾¶ºÍÎÄ¼þÃû
         set "INPUT_FILE=%%~ff"
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
         
-        REM Ö´ï¿½ï¿½Pythonï¿½Å±ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
+        REM Ö´ÐÐPython½Å±¾´¦ÀíÍ¼Ïñ
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
     )
 ) else (
-    REM ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ö±ï¿½Ó´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½
+    REM Èç¹ûÊÇÎÄ¼þ£¬Ö±½Ó´¦Àí¸ÃÎÄ¼þ
     set INPUT_DIR=%~dp1
     set INPUT_FILE=%~nx1
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
     
-    REM ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½setlocal enabledelayedexpansionï¿½ï¿½Ê¹ï¿½ï¿½!variable_name!ï¿½ï¿½ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! & pause"
+    REM ÓÉÓÚÊ¹ÓÃÁËsetlocal enabledelayedexpansion£¬Ê¹ÓÃ!variable_name!À´ÒýÓÃ±äÁ¿
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
 )
 
 pause
