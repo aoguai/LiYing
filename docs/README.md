@@ -29,9 +29,15 @@ LiYing 可以完全离线运行。所有图像处理操作都在本地运行。
 
 ### 效果展示
 
-| ![test1](../images/test1.jpg) | ![test2](../images/test2.jpg) | ![test3](../images/test3.jpg) |
-| ----------------------------- | ---------------------------- | ---------------------------- |
-| ![test1_output_sheet](../images/test1_output_sheet.jpg)(1寸-5寸相片纸-3*3) | ![test2_output_sheet](../images/test2_output_sheet.jpg)(2寸-5寸相片纸-2*2) | ![test3_output_sheet](../images/test3_output_sheet.jpg)(1寸-6寸相片纸-4*2) |
+| 一寸 · 5寸相纸 3×3 · 白底 · 裁剪线 | 二寸 · 5寸相纸 2×2 · 蓝底 | 一寸 · 6寸相纸 4×2 · 红底 · 照片旋转90° · RMBG-2.0 | 一寸 · 6寸相纸 4×2 · 深蓝底 · 照片间距 · 左上+右下双布局拼满 |
+| :---: | :---: | :---: | :---: |
+| ![test1_output_sheet](../images/test1_output_sheet.jpg) | ![test2_output_sheet](../images/test2_output_sheet.jpg) | ![test3_output_sheet](../images/test3_output_sheet.jpg) | ![test4_output_sheet](../images/test4_output_sheet.jpg) |
+
+**皮肤美化**（`--skin-retouch` 一键开启，左为原图，右为默认度数 磨皮 0.7 / 美白 0.8 效果）
+
+![test4_retouch_compare](../images/test4_retouch_compare.jpg)
+
+以上示例均可通过 `python docs/scripts/generate_examples.py` 复现。
 
 **注：本项目仅针对证件照图像处理，而非要求任意照片图像都可以完美执行，所以该项目的输入图片应该是符合一般要求的单人肖像照片。**
 

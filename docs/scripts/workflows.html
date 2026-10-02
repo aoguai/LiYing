@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiYing Workflow</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Smiley Sans font -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/smiley-sans@1.1.0/css/smiley-sans.css">
+    <style>
+        body {
+            font-family: "Smiley Sans", "SmileySans", system-ui, -apple-system, sans-serif !important;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workflow-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .workflow-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .workflow-step {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+            position: relative;
+            width: 320px;
+            height: 580px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workflow-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .step-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10;
+        }
+
+        .arrow-right {
+            position: relative;
+            width: 40px;
+            height: 3px;
+            background: #333;
+            margin: 0 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .arrow-right::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 12px solid #333;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        .image-container {
+            flex: 1;
+            margin: 4rem 1rem 1rem;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            background: #222;
+            border: 1px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .workflow-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            padding: 0.5rem;
+        }
+
+        /* Per-step image sizing */
+        .step-1 .workflow-image {
+            max-height: 90%;  /* original photo, largest */
+        }
+
+        .step-2 .workflow-image {
+            max-height: 85%;  /* slightly smaller after correction */
+        }
+
+        .step-3 .workflow-image {
+            max-height: 85%;  /* same size after skin retouching */
+        }
+
+        .step-4 .workflow-image {
+            max-height: 85%;  /* same size after background replacement */
+        }
+
+        .step-5 .workflow-image {
+            max-height: 60%;  /* visibly smaller after resize */
+        }
+
+        .step-6 .workflow-image {
+            max-height: 95%;  /* larger after sheet layout */
+            max-width: 95%;
+        }
+
+        .step-info {
+            padding: 0.75rem;
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid #333;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1920px) {
+            .workflow-step {
+                width: 300px;
+                height: 540px;
+            }
+        }
+
+        @media (max-width: 1600px) {
+            .workflow-step {
+                width: 280px;
+                height: 500px;
+            }
+            .arrow-right {
+                width: 30px;
+                margin: 0 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="text-center py-6 fade-in">
+            <h1 class="text-4xl font-bold mb-3">LiYing Workflow</h1>
+            <p class="text-lg text-gray-400">证件照处理工作流程 | ID Photo Processing Workflow</p>
+        </header>
+
+        <!-- Workflow Container -->
+        <div class="workflow-container flex-1 flex items-center px-8">
+            <div class="flex items-center mx-auto">
+                <!-- Step 1 -->
+                <div class="workflow-step rounded-xl p-4 step-1">
+                    <div class="step-number">01</div>
+                    <div class="image-container">
+                        <img src="../../images/test1.jpg" alt="Original image" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">载入图像</h3>
+                        <p class="text-xs text-gray-400">Load Image</p>
+                    </div>
+                </div>
+
+                <div class="arrow-right"></div>
+
+                <!-- Step 2 -->
+                <div class="workflow-step rounded-xl p-4 step-2">
+                    <div class="step-number">02</div>
+                    <div class="image-container">
+                        <img src="../../images/test1_output_corrected.jpg" alt="Corrected image" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">智能识别与校正</h3>
+                        <p class="text-xs text-gray-400">Detection &amp; Correction</p>
+                    </div>
+                </div>
+
+                <div class="arrow-right"></div>
+
+                <!-- Step 3 -->
+                <div class="workflow-step rounded-xl p-4 step-3">
+                    <div class="step-number">03</div>
+                    <div class="image-container">
+                        <img src="../../images/test1_output_retouched.jpg" alt="Skin retouched image" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">皮肤美化</h3>
+                        <p class="text-xs text-gray-400">Skin Retouching</p>
+                    </div>
+                </div>
+
+                <div class="arrow-right"></div>
+
+                <!-- Step 4 -->
+                <div class="workflow-step rounded-xl p-4 step-4">
+                    <div class="step-number">04</div>
+                    <div class="image-container">
+                        <img src="../../images/test1_output_background.jpg" alt="Background replaced image" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">背景替换</h3>
+                        <p class="text-xs text-gray-400">Background Replacement</p>
+                    </div>
+                </div>
+
+                <div class="arrow-right"></div>
+
+                <!-- Step 5 -->
+                <div class="workflow-step rounded-xl p-4 step-5">
+                    <div class="step-number">05</div>
+                    <div class="image-container">
+                        <img src="../../images/test1_output_resized.jpg" alt="Resized image" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">尺寸调整</h3>
+                        <p class="text-xs text-gray-400">Size Adjustment</p>
+                    </div>
+                </div>
+
+                <div class="arrow-right"></div>
+
+                <!-- Step 6 -->
+                <div class="workflow-step rounded-xl p-4 step-6">
+                    <div class="step-number">06</div>
+                    <div class="image-container">
+                        <img src="../../images/test1_output_sheet.jpg" alt="Photo sheet" class="workflow-image">
+                    </div>
+                    <div class="step-info">
+                        <h3 class="text-base font-bold mb-1">自动排版</h3>
+                        <p class="text-xs text-gray-400">Auto Layout</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

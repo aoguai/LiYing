@@ -29,13 +29,21 @@ LiYing can run completely offline. All image processing operations are performed
 
 ### Showcase
 
-| ![test1](../images/test1.jpg) | ![test2](../images/test2.jpg) | ![test3](../images/test3.jpg) |
-| ----------------------------- | ---------------------------- | ---------------------------- |
-| ![test1_output_sheet](../images/test1_output_sheet.jpg)(1-inch on 5-inch photo paper - 3x3) | ![test2_output_sheet](../images/test2_output_sheet.jpg)(2-inch on 5-inch photo paper - 2x2) | ![test3_output_sheet](../images/test3_output_sheet.jpg)(1-inch on 6-inch photo paper - 4x2) |
+| 1-inch · 5-inch paper 3×3 · white · crop lines | 2-inch · 5-inch paper 2×2 · blue | 1-inch · 6-inch paper 4×2 · red · photos rotated 90° · RMBG-2.0 | 1-inch · 6-inch paper 4×2 · dark blue · photo spacing · top-left + bottom-right dual layout filling the paper |
+| :---: | :---: | :---: | :---: |
+| ![test1_output_sheet](../images/test1_output_sheet.jpg) | ![test2_output_sheet](../images/test2_output_sheet.jpg) | ![test3_output_sheet](../images/test3_output_sheet.jpg) | ![test4_output_sheet](../images/test4_output_sheet.jpg) |
+
+**Skin Retouching** (`--skin-retouch` enables it with a single flag; left: original, right: default degrees — smoothing 0.7 / whitening 0.8)
+
+![test4_retouch_compare](../images/test4_retouch_compare.jpg)
+
+All examples above can be regenerated with one command: `python docs/scripts/generate_examples.py`.
 
 **Note: This project is specifically for processing passport photos and may not work perfectly on any arbitrary image. The input images should be standard single-person portrait photos.**
 
 **It is normal for unexpected results to occur if you use complex images to create passport photos.**
+
+**The test4 sample photo is from [Pexels](https://www.pexels.com/photo/portrait-of-a-woman-with-natural-beauty-35765754/) by Bello Danhajiya, used under the [Pexels License](https://www.pexels.com/license/).**
 
 <br>
 
