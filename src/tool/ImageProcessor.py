@@ -24,7 +24,8 @@ class ImageProcessor:
                  yunet_model_path=None,
                  RMBG_model_path=None,
                  rgb_list=None,
-                 y_b=False):
+                 y_b=False,
+                 face_detector_type='yunet'):
         """
         Initialize ImageProcessor instance
 
@@ -33,6 +34,7 @@ class ImageProcessor:
         :param yunet_model_path: Path to the YuNet model
         :param RMBG_model_path: Path to the RMBG model
         :param rgb_list: List of rgb channel values for image composition
+        :param face_detector_type: Face detector for the layout pipeline, 'yunet' (default) or 'retinaface'
         """
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image path does not exist: {img_path}")
@@ -48,24 +50,24 @@ class ImageProcessor:
         # Check if model files exist
         if not os.path.exists(yolov8_model_path):
             raise FileNotFoundError(f"YOLOv8 model path does not exist: {yolov8_model_path}")
-        if not os.path.exists(yunet_model_path):
+        if face_detector_type != 'retinaface' and not os.path.exists(yunet_model_path):
             raise FileNotFoundError(f"YuNet model path does not exist: {yunet_model_path}")
         if not os.path.exists(RMBG_model_path):
             raise FileNotFoundError(f"RMBG model path does not exist: {RMBG_model_path}")
 
-        self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b)
+        self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b, face_detector_type)
         self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[1024, 1024],
                                            rgb_list=rgb_list if rgb_list is not None else [255, 255, 255])
         self.photo_requirements_detector = PhotoRequirements()
 
     @staticmethod
-    def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:
+    def rotate_image(image: np.ndarray, angle: float):
         """
-        Rotate the image
+        Rotate the image and return the affine transform used for geometry updates.
 
         :param image: Original image (numpy.ndarray)
         :param angle: Rotation angle (degrees)
-        :return: Rotated image (numpy.ndarray)
+        :return: Rotated image and affine transform matrix
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("The input image must be of type numpy.ndarray")
@@ -75,38 +77,123 @@ class ImageProcessor:
         height, width = image.shape[:2]
         center = (width / 2, height / 2)
         matrix = cv.getRotationMatrix2D(center, angle, 1.0)
-        rotated_image = cv.warpAffine(image, matrix, (width, height), flags=cv.INTER_CUBIC)
-        return rotated_image
+        cos = abs(matrix[0, 0])
+        sin = abs(matrix[0, 1])
+
+        new_width = int(np.ceil((height * sin) + (width * cos)))
+        new_height = int(np.ceil((height * cos) + (width * sin)))
+
+        matrix[0, 2] += (new_width / 2) - center[0]
+        matrix[1, 2] += (new_height / 2) - center[1]
+
+        rotated_image = cv.warpAffine(
+            image,
+            matrix,
+            (new_width, new_height),
+            flags=cv.INTER_CUBIC,
+            borderMode=cv.BORDER_REPLICATE,
+        )
+        return rotated_image, matrix
 
     @staticmethod
-    def compute_rotation_angle(left_shoulder: tuple, right_shoulder: tuple, image_shape: tuple) -> float:
-        """
-        Compute the rotation angle to align the shoulders horizontally
+    def _identity_affine_matrix() -> np.ndarray:
+        return np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
 
-        :param left_shoulder: Coordinates of the left shoulder keypoint (normalized or pixel coordinates)
-        :param right_shoulder: Coordinates of the right shoulder keypoint (normalized or pixel coordinates)
+    @staticmethod
+    def _is_valid_keypoint(keypoint) -> bool:
+        return (
+            isinstance(keypoint, (tuple, list))
+            and len(keypoint) == 3
+            and all(np.isfinite(value) for value in keypoint)
+            and keypoint[0] >= 0
+            and keypoint[1] >= 0
+            and keypoint[2] > 0
+        )
+
+    @staticmethod
+    def transform_keypoint(keypoint, matrix: np.ndarray):
+        if not isinstance(matrix, np.ndarray) or matrix.shape != (2, 3):
+            raise ValueError("The affine transform matrix format is incorrect")
+        if not (isinstance(keypoint, (tuple, list)) and len(keypoint) == 3):
+            raise ValueError("The keypoint format is incorrect")
+
+        point = np.array([keypoint[0], keypoint[1], 1.0], dtype=np.float32)
+        transformed = matrix @ point
+        return float(transformed[0]), float(transformed[1]), float(keypoint[2])
+
+    @classmethod
+    def transform_box(cls, box, matrix: np.ndarray):
+        if not isinstance(matrix, np.ndarray) or matrix.shape != (2, 3):
+            raise ValueError("The affine transform matrix format is incorrect")
+        if not (isinstance(box, (tuple, list, np.ndarray)) and len(box) == 4):
+            raise ValueError("The box format is incorrect")
+
+        x1, y1, x2, y2 = map(float, box)
+        corners = [
+            cls.transform_keypoint((x1, y1, 1.0), matrix),
+            cls.transform_keypoint((x2, y1, 1.0), matrix),
+            cls.transform_keypoint((x1, y2, 1.0), matrix),
+            cls.transform_keypoint((x2, y2, 1.0), matrix),
+        ]
+        xs = [point[0] for point in corners]
+        ys = [point[1] for point in corners]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    @staticmethod
+    def _clip_box_to_image(box, image_shape: tuple):
+        if not (isinstance(image_shape, tuple) and len(image_shape) == 2):
+            raise ValueError("The image size format is incorrect")
+
+        height, width = image_shape
+        x1, y1, x2, y2 = box
+        x1 = max(int(np.floor(x1)), 0)
+        y1 = max(int(np.floor(y1)), 0)
+        x2 = min(int(np.ceil(x2)), width)
+        y2 = min(int(np.ceil(y2)), height)
+
+        if x2 <= x1:
+            x2 = min(x1 + 1, width)
+            x1 = max(x2 - 1, 0)
+        if y2 <= y1:
+            y2 = min(y1 + 1, height)
+            y1 = max(y2 - 1, 0)
+
+        return x1, y1, x2, y2
+
+    @staticmethod
+    def compute_rotation_angle(left_shoulder: tuple, right_shoulder: tuple, image_shape: tuple = None) -> float:
+        """
+        Compute the correction angle needed to align the shoulders horizontally.
+
+        :param left_shoulder: Coordinates of the left shoulder keypoint (pixel coordinates)
+        :param right_shoulder: Coordinates of the right shoulder keypoint (pixel coordinates)
         :param image_shape: Height and width of the image
-        :return: Rotation angle (degrees)
+        :return: Correction angle (degrees)
         :rtype: float
         """
         if not (isinstance(left_shoulder, tuple) and len(left_shoulder) == 3):
             raise ValueError("The left shoulder keypoint format is incorrect")
         if not (isinstance(right_shoulder, tuple) and len(right_shoulder) == 3):
             raise ValueError("The right shoulder keypoint format is incorrect")
-        if not (isinstance(image_shape, tuple) and len(image_shape) == 2):
+        if image_shape is not None and not (isinstance(image_shape, tuple) and len(image_shape) == 2):
             raise ValueError("The image size format is incorrect")
 
-        height, width = image_shape
-
-        # If coordinates are normalized, convert to pixel coordinates
-        if left_shoulder[2] < 1.0 and right_shoulder[2] < 1.0:
-            left_shoulder = (left_shoulder[0] * width, left_shoulder[1] * height)
-            right_shoulder = (right_shoulder[0] * width, right_shoulder[1] * height)
+        if not (
+            ImageProcessor._is_valid_keypoint(left_shoulder)
+            and ImageProcessor._is_valid_keypoint(right_shoulder)
+        ):
+            return 0.0
 
         dx = right_shoulder[0] - left_shoulder[0]
         dy = right_shoulder[1] - left_shoulder[1]
-        angle = np.arctan2(dy, dx) * (180 / np.pi)  # Compute the angle
-        return angle
+        if dx == 0 and dy == 0:
+            return 0.0
+
+        angle = -np.degrees(np.arctan2(dy, dx))
+        if abs(angle) > 45:
+            return 0.0
+
+        return float(angle)
 
     def crop_and_correct_image(self) -> PhotoEntity:
         """
@@ -117,64 +204,76 @@ class ImageProcessor:
         :raises ValueError: If no single person is detected
         """
         if self.photo.person_bbox is not None:
-            height, width = self.photo.image.shape[:2]
-
             # Get bounding box coordinates and keypoints
             bbox_xyxy = self.photo.person_bbox
-            x1, y1, x2, y2 = bbox_xyxy
-            # print(x1, y1, x2, y2)
             bbox_keypoints = self.photo.person_keypoints
-            bbox_height = y2 - y1
 
             # Get shoulder keypoints
-            left_shoulder = (bbox_keypoints[18], bbox_keypoints[19],
-                              bbox_keypoints[20]) # bbox_keypoints[5] right shoulder
-            right_shoulder = (bbox_keypoints[15], bbox_keypoints[16], bbox_keypoints[17])   # bbox_keypoints[6] left shoulder
-            # print(left_shoulder, right_shoulder)
+            left_shoulder = (bbox_keypoints[15], bbox_keypoints[16], bbox_keypoints[17])
+            right_shoulder = (bbox_keypoints[18], bbox_keypoints[19], bbox_keypoints[20])
 
             # Compute rotation angle
-            angle = self.compute_rotation_angle(left_shoulder, right_shoulder, (height, width))
+            angle = self.compute_rotation_angle(left_shoulder, right_shoulder, self.photo.image.shape[:2])
 
             # Rotate the image
-            rotated_image = self.rotate_image(self.photo.image, angle) if abs(angle) > 5 else self.photo.image
+            rotated_image = self.photo.image
+            rotation_matrix = self._identity_affine_matrix()
+            if abs(angle) > 5:
+                rotated_image, rotation_matrix = self.rotate_image(self.photo.image, angle)
 
-            # Recalculate crop box position in the rotated image
             height, width = rotated_image.shape[:2]
-            x1, y1, x2, y2 = int(x1 * width / width), int(y1 * height / height), int(x2 * width / width), int(
-                y2 * height / height)
+            x1, y1, x2, y2 = self.transform_box(bbox_xyxy, rotation_matrix)
+            bbox_height = y2 - y1
+            transformed_face_bbox = (
+                self.transform_box(self.photo.face_bbox, rotation_matrix)
+                if self.photo.face_bbox is not None
+                else None
+            )
+            transformed_left_shoulder = self.transform_keypoint(left_shoulder, rotation_matrix)
+            transformed_right_shoulder = self.transform_keypoint(right_shoulder, rotation_matrix)
 
             # Adjust crop area to ensure the top does not exceed the image range
             top_margin = bbox_height / 5
-            y1 = max(int(y1), 0) if y1 >= top_margin else 0
+            y1 = max(int(np.floor(y1)), 0) if y1 >= top_margin else 0
 
             # If y1 is less than 60 pixels from the top of the face detection box, adjust it
-            if y1 != 0 and self.photo.face_bbox is not None:
-                if int(y1) - int(self.photo.face_bbox[1]) < max(int(height / 600 * 60), 60):
-                    y1 = max(int(y1 - (int(height / 600 * 60))), 0)
+            top_padding = max(int(height / 600 * 60), 60)
+            if y1 != 0 and transformed_face_bbox is not None:
+                if int(y1) - int(transformed_face_bbox[1]) < top_padding:
+                    y1 = max(int(y1 - top_padding), 0)
 
             # Adjust the crop area to ensure the lower body is not too long
             shoulder_margin = y1 + bbox_height / max(int(height / 600 * 16), 16)
-            y2 = min(y2, height - int(shoulder_margin)) if left_shoulder[1] > shoulder_margin or right_shoulder[
-                1] > shoulder_margin else y2
+            if (
+                (self._is_valid_keypoint(transformed_left_shoulder) and transformed_left_shoulder[1] > shoulder_margin)
+                or (self._is_valid_keypoint(transformed_right_shoulder) and transformed_right_shoulder[1] > shoulder_margin)
+            ):
+                y2 = min(int(np.ceil(y2)), height - int(shoulder_margin))
+            else:
+                y2 = int(np.ceil(y2))
 
             # Adjust the crop area to ensure the face is centered in the image
-            left_eye = [bbox_keypoints[6], bbox_keypoints[7], bbox_keypoints[8]]  # bbox_keypoints[2]
-            right_eye = [bbox_keypoints[3], bbox_keypoints[4], bbox_keypoints[5]]  # bbox_keypoints[1]
-            # print(left_eye, right_eye)
-            face_center_x = (left_eye[0] + right_eye[0]) / 2
+            left_eye = (bbox_keypoints[3], bbox_keypoints[4], bbox_keypoints[5])
+            right_eye = (bbox_keypoints[6], bbox_keypoints[7], bbox_keypoints[8])
+            if self._is_valid_keypoint(left_eye) and self._is_valid_keypoint(right_eye):
+                transformed_left_eye = self.transform_keypoint(left_eye, rotation_matrix)
+                transformed_right_eye = self.transform_keypoint(right_eye, rotation_matrix)
+                face_center_x = (transformed_left_eye[0] + transformed_right_eye[0]) / 2
+            else:
+                face_center_x = (x1 + x2) / 2
             crop_width = x2 - x1
 
-            x1 = max(int(face_center_x - crop_width / 2), 0)
-            x2 = min(int(face_center_x + crop_width / 2), width)
-
-            # Ensure the crop area does not exceed the image range
-            x1 = 0 if x1 < 0 else x1
-            x2 = width if x2 > width else x2
-
-            # print(x1,x2,y1,y2)
+            x1 = face_center_x - crop_width / 2
+            x2 = face_center_x + crop_width / 2
+            x1, y1, x2, y2 = self._clip_box_to_image((x1, y1, x2, y2), (height, width))
 
             # Crop the image
             cropped_image = rotated_image[y1:y2, x1:x2]
+            if cropped_image.size == 0:
+                fallback_x1, fallback_y1, fallback_x2, fallback_y2 = self._clip_box_to_image(
+                    (x1, y1, x2, y2), (height, width)
+                )
+                cropped_image = rotated_image[fallback_y1:fallback_y2, fallback_x1:fallback_x2]
 
             # Update the PhotoEntity object's image and re-detect
             self.photo.image = cropped_image
@@ -185,7 +284,7 @@ class ImageProcessor:
         else:
             warnings.warn("No human face detected. Falling back to general object detection.", UserWarning)
             # No human subject detected, use YOLOv8 for basic object detection
-            yolo_result, _ = self.photo.yolov8_detector.detect(self.photo.img_path)
+            yolo_result, _ = self.photo.yolov8_detector.detect_image(self.photo.image)
             if yolo_result and yolo_result['boxes']:
                 warnings.warn("Object detected. Using the first detected object for processing.", UserWarning)
                 # Use the first detected object's bounding box
@@ -233,7 +332,89 @@ class ImageProcessor:
         self.photo.image = self.segmentation.infer(self.photo.image)
         return self.photo
 
-    def resize_image(self, photo_type):
+    @staticmethod
+    def _validate_composition_ratios(face_height_ratio, top_margin_ratio):
+        values = {
+            'face_height_ratio': face_height_ratio,
+            'top_margin_ratio': top_margin_ratio,
+        }
+        for name, value in values.items():
+            if not isinstance(value, (int, float)) or not np.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
+        if face_height_ratio <= 0:
+            raise ValueError("face_height_ratio must be greater than 0")
+        if face_height_ratio > 1:
+            raise ValueError("face_height_ratio must be less than or equal to 1")
+        if top_margin_ratio < 0:
+            raise ValueError("top_margin_ratio must be greater than or equal to 0")
+        if top_margin_ratio > 1:
+            raise ValueError("top_margin_ratio must be less than or equal to 1")
+
+    @classmethod
+    def _get_photo_crop_coordinates(cls, image_shape, aspect_ratio, face_bbox=None,
+                                    face_height_ratio=0.30, top_margin_ratio=0.175):
+        """Return a target-ratio crop anchored by a detected face when available."""
+        if not isinstance(image_shape, tuple) or len(image_shape) != 2:
+            raise ValueError("The image size format is incorrect")
+        if any(not isinstance(value, (int, np.integer)) or value <= 0 for value in image_shape):
+            raise ValueError(f"Image dimensions must be positive, got {image_shape}")
+        if not isinstance(aspect_ratio, (int, float)) or not np.isfinite(aspect_ratio) or aspect_ratio <= 0:
+            raise ValueError("aspect_ratio must be a finite number greater than 0")
+
+        height, width = image_shape
+        crop_width = width
+        crop_height = int(crop_width / aspect_ratio)
+        if crop_height > height:
+            crop_height = height
+            crop_width = int(crop_height * aspect_ratio)
+        if crop_width <= 0 or crop_height <= 0:
+            raise ValueError(
+                f"Target ratio {aspect_ratio} cannot produce a non-empty crop for image size {width}x{height}"
+            )
+
+        x_start = (width - crop_width) // 2
+        y_start = 0
+        if face_bbox is None:
+            return x_start, x_start + crop_width, y_start, y_start + crop_height
+
+        cls._validate_composition_ratios(face_height_ratio, top_margin_ratio)
+        if not isinstance(face_bbox, (tuple, list, np.ndarray)) or len(face_bbox) != 4:
+            raise ValueError(f"Detected face bbox must contain four coordinates, got {face_bbox!r}")
+        try:
+            face_x1, face_y1, face_x2, face_y2 = map(float, face_bbox)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"Detected face bbox contains non-numeric coordinates: {face_bbox!r}") from error
+        if not all(np.isfinite(value) for value in (face_x1, face_y1, face_x2, face_y2)):
+            raise ValueError(f"Detected face bbox contains non-finite coordinates: {face_bbox!r}")
+        face_height = face_y2 - face_y1
+        if face_height <= 0:
+            raise ValueError(f"Detected face bbox has non-positive height: {face_bbox!r}")
+
+        desired_crop_height = face_height / face_height_ratio
+        desired_crop_width = desired_crop_height * aspect_ratio
+        if not np.isfinite(desired_crop_height) or not np.isfinite(desired_crop_width):
+            raise ValueError("Face composition parameters produce an invalid crop size")
+        scale = min(1.0, width / desired_crop_width, height / desired_crop_height)
+        crop_height = max(1, min(height, int(round(desired_crop_height * scale))))
+        crop_width = max(1, min(width, int(round(crop_height * aspect_ratio))))
+        if crop_width > width:
+            crop_width = width
+            crop_height = max(1, min(height, int(round(crop_width / aspect_ratio))))
+        if crop_width <= 0 or crop_height <= 0 or crop_width > width or crop_height > height:
+            raise ValueError(
+                f"Face composition parameters cannot produce a valid crop for image size {width}x{height}"
+            )
+
+        face_center_x = (face_x1 + face_x2) / 2
+        x_start = int(round(face_center_x - crop_width / 2))
+        y_start = int(round(face_y1 - crop_height * top_margin_ratio))
+        x_start = min(max(x_start, 0), width - crop_width)
+        y_start = min(max(y_start, 0), height - crop_height)
+        if x_start < 0 or y_start < 0 or x_start + crop_width > width or y_start + crop_height > height:
+            raise ValueError("Calculated face crop is outside the image bounds")
+        return x_start, x_start + crop_width, y_start, y_start + crop_height
+
+    def resize_image(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
         # Get the target dimensions and other info
         photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
         width, height = photo_info['width'], photo_info['height']
@@ -245,23 +426,15 @@ class ImageProcessor:
         is_width_multiple = (orig_width % width == 0) if orig_width >= width else (width % orig_width == 0)
         is_height_multiple = (orig_height % height == 0) if orig_height >= height else (height % orig_height == 0)
         
-        if is_width_multiple and is_height_multiple:
+        if is_width_multiple and is_height_multiple and self.photo.face_bbox is None:
             # Resize the image proportionally
             self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
             return self.photo.image
 
-        def get_crop_coordinates(original_size, aspect_ratio):
-            original_width, original_height = original_size
-            crop_width = original_width
-            crop_height = int(crop_width / aspect_ratio)
-            if crop_height > original_height:
-                crop_height = original_height
-                crop_width = int(crop_height * aspect_ratio)
-            x_start = (original_width - crop_width) // 2
-            y_start = 0
-            return x_start, x_start + crop_width, y_start, y_start + crop_height
-
-        x1, x2, y1, y2 = get_crop_coordinates((orig_width, orig_height), width / height)
+        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
+            (orig_height, orig_width), width / height, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio
+        )
         cropped_image = self.photo.image[y1:y2, x1:x2]
         
         # Update the PhotoEntity object's image
@@ -274,6 +447,30 @@ class ImageProcessor:
         self.photo.print_size = photo_info['print_size']
         self.photo.resolution = photo_info['resolution']
         
+        return self.photo.image
+
+    def crop_to_photo_ratio(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
+        photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
+        requirements = self.photo_requirements_detector.config_manager.get_size_config(photo_type)
+
+        print_width = requirements.get('PrintWidth') if requirements else None
+        print_height = requirements.get('PrintHeight') if requirements else None
+
+        if print_width and print_height:
+            aspect_ratio = print_width / print_height
+        else:
+            aspect_ratio = photo_info['width'] / photo_info['height']
+
+        orig_height, orig_width = self.photo.image.shape[:2]
+
+        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
+            (orig_height, orig_width), aspect_ratio, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio
+        )
+        self.photo.image = self.photo.image[y1:y2, x1:x2]
+        self.photo.print_size = photo_info['print_size']
+        self.photo.resolution = photo_info['resolution']
+
         return self.photo.image
 
     def save_photos(self, save_path: str, y_b=False, target_size=None, size_range=None) -> None:

@@ -100,12 +100,14 @@ messages = {
         'background_saved': 'Background-changed image saved to {path}',
         'resized_saved': 'Resized image saved to {path}',
         'sheet_saved': 'Photo sheet saved to {path}',
+        'output_saved': 'Output image saved to {path}',
     },
     'zh': {
         'corrected_saved': '裁剪并修正后的图像已保存到 {path}',
         'background_saved': '替换背景后的图像已保存到 {path}',
         'resized_saved': '调整尺寸后的图像已保存到 {path}',
         'sheet_saved': '照片表格已保存到 {path}',
+        'output_saved': '输出图像已保存到 {path}',
     }
 }
 
@@ -124,6 +126,8 @@ def echo_message(key, **kwargs):
 @click.option('-u', '--yunet-model-path', type=click.Path(),
               default=os.path.join(MODEL_DIR, 'face_detection_yunet_2023mar.onnx'),
               help='Path to YuNet model' if get_language() == 'en' else 'YuNet 模型路径')
+@click.option('--face-detector', type=click.Choice(['yunet', 'retinaface']), default='yunet', show_default=True,
+              help='Face detector for the layout pipeline; retinaface reuses the skin-retouching face_detector.onnx' if get_language() == 'en' else '排版用人脸检测模型；retinaface 复用美肤的 face_detector.onnx')
 @click.option('-r', '--rmbg-model-path', type=click.Path(),
               default=os.path.join(MODEL_DIR, 'RMBG-1.4-model.onnx'),
               help='Path to RMBG model' if get_language() == 'en' else 'RMBG 模型路径')
@@ -159,6 +163,8 @@ def echo_message(key, **kwargs):
               help='Whether to rotate the photo by 90 degrees' if get_language() == 'en' else '是否旋转照片90度')
 @click.option('-rs', '--resize/--no-resize', default=True,
               help='Whether to resize the image' if get_language() == 'en' else '是否调整图像尺寸')
+@click.option('--ratio-crop/--no-ratio-crop', default=False,
+              help='Crop by photo print-size ratio without resizing to electronic pixels' if get_language() == 'en' else '按照片打印尺寸比例裁剪，不缩放到电子像素尺寸')
 @click.option('-svr', '--save-resized/--no-save-resized', default=False,
               help='Whether to save the resized image' if get_language() == 'en' else '是否保存调整尺寸后的图像')
 @click.option('-al', '--add-crop-lines/--no-add-crop-lines', default=True, 
@@ -171,18 +177,41 @@ def echo_message(key, **kwargs):
               help='Whether to use file size limits from CSV' if get_language() == 'en' else '是否使用CSV中的文件大小限制')
 @click.option('-lp', '--layout-position', type=click.IntRange(0, 8), default=4,
               help='Layout position (0-8): 0=top-left, 1=top, 2=top-right, 3=middle-left, 4=center, 5=middle-right, 6=bottom-left, 7=bottom, 8=bottom-right' if get_language() == 'en' else '布局位置(0-8)：0=左上，1=上，2=右上，3=左中，4=中，5=右中，6=左下，7=下，8=右下')
+@click.option('--layout/--no-layout', default=True,
+              help='Whether to generate a photo sheet' if get_language() == 'en' else '是否生成照片排版图')
 @click.option('-psp', '--photos-spacing', type=int, default=0, help='Pixel spacing between photos in the sheet (default: 0)' if get_language() == 'en' else '照片间距（像素，默认0）')
-def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path, 
-        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows, 
-        sheet_cols, rotate, resize, save_resized, add_crop_lines, target_size, size_range, use_csv_size, layout_position, photos_spacing):
+@click.option('--face-height-ratio', type=float, default=0.30, show_default=True,
+              help='Face size (0-1, non-zero): larger value makes the face larger; adjust this first' if get_language() == 'en' else '脸大小（0-1，不能为0）：越大脸越大；先调此项')
+@click.option('--top-margin-ratio', type=float, default=0.175, show_default=True,
+              help='Top margin (0-1): larger value moves the face down; adjust after face size' if get_language() == 'en' else '头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项')
+@click.option('--skin-retouch/--no-skin-retouch', default=False,
+              help='Enable automatic skin retouching' if get_language() == 'en' else '开启自动美肤')
+@click.option('--skin-retouch-model-dir', type=click.Path(),
+              default=MODEL_DIR,
+              help='Directory of skin retouching models (skin_retouch_mask.onnx, retouch_generator.onnx, face_detector.onnx)' if get_language() == 'en' else '美肤模型目录（需包含 skin_retouch_mask.onnx、retouch_generator.onnx、face_detector.onnx）')
+@click.option('--retouch-degree', type=click.FloatRange(0.0, 1.0), default=0.7, show_default=True,
+              help='Skin retouching degree (0-1)' if get_language() == 'en' else '磨皮程度（0-1）')
+@click.option('--whitening-degree', type=click.FloatRange(0.0, 1.0), default=0.8, show_default=True,
+              help='Skin whitening degree (0-1)' if get_language() == 'en' else '美白程度（0-1）')
+def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_config, color_config, rgb_list, save_path,
+        photo_type, photo_sheet_size, compress, save_corrected, change_background, save_background, layout_only, sheet_rows,
+        sheet_cols, rotate, resize, ratio_crop, save_resized, add_crop_lines, target_size, size_range, use_csv_size,
+        layout_position, layout, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+        skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree):
     # Parameter validation
     if target_size is not None and size_range is not None:
         warnings.warn("Both target_size and size_range are provided. Using target_size and ignoring size_range.")
         size_range = None
+    try:
+        ImageProcessor._validate_composition_ratios(face_height_ratio, top_margin_ratio)
+    except ValueError as error:
+        raise click.BadParameter(str(error)) from error
         
-    # Create an instance of the image processor
-    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress)
+    # Create processing helpers
     photo_requirements = PhotoRequirements(get_language(), size_config, color_config)
+    processor = ImageProcessor(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, rgb_list, y_b=compress,
+                               face_detector_type=face_detector)
+    processor.photo_requirements_detector = photo_requirements
     
     # Get file size limits from CSV if enabled
     file_size_limits = {}
@@ -197,6 +226,11 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
     
     # Crop and correct image
     processor.crop_and_correct_image()
+    if skin_retouch:
+        # Retouch on the 3-channel BGR result before any background replacement
+        from tool.SkinRetouch import retouch_image
+        processor.photo.image = retouch_image(
+            processor.photo.image, skin_retouch_model_dir, retouch_degree, whitening_degree)
     if save_corrected:
         corrected_path = os.path.splitext(save_path)[0] + '_corrected' + os.path.splitext(save_path)[1]
         processor.save_photos(corrected_path, compress, **file_size_limits)
@@ -210,23 +244,35 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
             processor.save_photos(background_path, compress, **file_size_limits)
             echo_message('background_saved', path=background_path)
 
-    # Optional resizing
-    if resize:
-        processor.resize_image(photo_type)
+    # Optional size processing
+    if ratio_crop:
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
+    elif resize:
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
         if save_resized:
             resized_path = os.path.splitext(save_path)[0] + '_resized' + os.path.splitext(save_path)[1]
             processor.save_photos(resized_path, compress, **file_size_limits)
             echo_message('resized_saved', path=resized_path)
 
-    # Generate photo sheet
-    # Set photo sheet size
-    sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
-    sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
-    generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
-    sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]
-    generator.save_photo_sheet(photo_sheet_cv, sheet_path)
-    echo_message('sheet_saved', path=sheet_path)
+    if layout:
+        # Generate photo sheet
+        # Set photo sheet size
+        sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+        sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
+        generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
+        try:
+            photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+        except ValueError:
+            if not ratio_crop:
+                raise
+            processor.resize_image(photo_type)
+            photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+        sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]
+        generator.save_photo_sheet(photo_sheet_cv, sheet_path)
+        echo_message('sheet_saved', path=sheet_path)
+    else:
+        processor.save_photos(save_path, compress, **file_size_limits)
+        echo_message('output_saved', path=save_path)
 
 
 if __name__ == "__main__":

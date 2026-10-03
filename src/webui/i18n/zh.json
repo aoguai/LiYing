@@ -26,6 +26,8 @@
     "preset_color": "预设颜色",
     "custom_color": "自定义",
     "layout_only": "仅排版（不更换背景）",
+    "ratio_crop": "按比例裁剪",
+    "layout": "生成排版图",
     "config_management": "配置管理",
     "size_config_table": "尺寸配置表",
     "color_config_table": "颜色配置表",
@@ -42,6 +44,10 @@
     "size_config_row_added": "已添加新的尺寸配置行",
     "color_config_row_added": "已添加新的颜色配置行",
     "add_crop_lines": "添加裁剪线",
+    "skin_retouch": "开启自动美肤",
+    "skin_retouch_model_dir": "美肤模型目录",
+    "retouch_degree": "磨皮程度",
+    "whitening_degree": "美白程度",
     "save_image": "保存图像",
     "save_corrected": "保存更正后的图像",
     "save_path": "保存路径",
@@ -69,5 +75,8 @@
     "layout_position_8": "右下",
     "photos_spacing": "照片间距（像素）",
     "download_image": "下载图像",
-    "server_save_disabled": "服务器部署模式下已禁用保存到服务器功能"
+    "server_save_disabled": "服务器部署模式下已禁用保存到服务器功能",
+    "face_height_ratio": "脸部高度占比",
+    "top_margin_ratio": "头顶留白占比",
+    "face_detector": "人脸检测模型（YuNet / RetinaFace）"
 }

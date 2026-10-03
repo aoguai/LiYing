@@ -29,9 +29,15 @@ LiYing 可以完全离线运行。所有图像处理操作都在本地运行。
 
 ### 效果展示
 
-| ![test1](../images/test1.jpg) | ![test2](../images/test2.jpg) | ![test3](../images/test3.jpg) |
-| ----------------------------- | ---------------------------- | ---------------------------- |
-| ![test1_output_sheet](../images/test1_output_sheet.jpg)(1寸-5寸相片纸-3*3) | ![test2_output_sheet](../images/test2_output_sheet.jpg)(2寸-5寸相片纸-2*2) | ![test3_output_sheet](../images/test3_output_sheet.jpg)(1寸-6寸相片纸-4*2) |
+| 一寸 · 5寸相纸 3×3 · 白底 · 裁剪线 | 二寸 · 5寸相纸 2×2 · 蓝底 | 一寸 · 6寸相纸 4×2 · 红底 · 照片旋转90° · RMBG-2.0 | 一寸 · 6寸相纸 4×2 · 深蓝底 · 照片间距 · 左上+右下双布局拼满 |
+| :---: | :---: | :---: | :---: |
+| ![test1_output_sheet](../images/test1_output_sheet.jpg) | ![test2_output_sheet](../images/test2_output_sheet.jpg) | ![test3_output_sheet](../images/test3_output_sheet.jpg) | ![test4_output_sheet](../images/test4_output_sheet.jpg) |
+
+**皮肤美化**（`--skin-retouch` 一键开启，左为原图，右为默认度数 磨皮 0.7 / 美白 0.8 效果）
+
+![test4_retouch_compare](../images/test4_retouch_compare.jpg)
+
+以上示例均可通过 `python docs/scripts/generate_examples.py` 复现。
 
 **注：本项目仅针对证件照图像处理，而非要求任意照片图像都可以完美执行，所以该项目的输入图片应该是符合一般要求的单人肖像照片。**
 
@@ -118,11 +124,14 @@ pip install -r requirements.txt # 安装依赖
 
 | 用途                     | 模型名称              | 下载链接                                                                                                                                           | 来源                                                     |
 |------------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
-| 人脸识别                  | Yunnet            | [下载链接](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx)                           | [Yunnet](https://github.com/ShiqiYu/libfacedetection)  |
+| 人脸识别                  | Yunnet / Retinaface（排版可选，美肤必需） | [Yunnet 下载链接](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx) / [Retinaface 项目链接](https://github.com/biubug6/Pytorch_Retinaface) | [Yunnet](https://github.com/ShiqiYu/libfacedetection) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 | 主体识别替换背景              | RMBG-1.4/2.0 | [1.4 下载链接](https://huggingface.co/briaai/RMBG-1.4/blob/main/onnx/model.onnx)/[2.0 下载链接](https://huggingface.co/briaai/RMBG-2.0/tree/main/onnx) | [BRIA AI](https://huggingface.co/briaai)     |
 | 人体识别                  | yolov8n-pose      | [下载链接](https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n-pose.pt)                                                         | [ultralytics](https://github.com/ultralytics/ultralytics) |
+| 自动美肤                  | cv_unet_skin_retouching_torch / Retinaface | [磨皮下载链接](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary) / [Retinaface 项目链接](https://github.com/biubug6/Pytorch_Retinaface) | [ModelScope damo](https://modelscope.cn/organization/damo) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 
 **注： 对于 yolov8n-pose 模型，您需要将其导出为 ONNX 模型，您可以参考[官方文档](https://docs.ultralytics.com/integrations/onnx/)实现**
+
+**注： 对于自动美肤功能，您可以参照 [skin-retouching-onnxruntime](https://github.com/aoguai/skin-retouching-onnxruntime) 自行导出 ONNX 模型，将导出的 `model.onnx` 重命名为 `skin_retouch_mask.onnx`。**
 
 同时，我们提供了转换好的 ONNX 模型，您可以直接下载使用：
 
@@ -162,6 +171,9 @@ Usage: main.py [OPTIONS] IMG_PATH
 Options:
   -y, --yolov8-model-path PATH    YOLOv8 模型路径
   -u, --yunet-model-path PATH     YuNet 模型路径
+  --face-detector [yunet|retinaface]
+                                  排版用人脸检测模型；retinaface 复用美肤的
+                                  face_detector.onnx  [default: yunet]
   -r, --rmbg-model-path PATH      RMBG 模型路径
   -sz, --size-config PATH         尺寸配置文件路径
   -cl, --color-config PATH        颜色配置文件路径
@@ -181,6 +193,7 @@ Options:
   -sc, --sheet-cols INTEGER       照片表格的列数
   -rt, --rotate / --no-rotate     是否旋转照片90度
   -rs, --resize / --no-resize     是否调整图像尺寸
+  --ratio-crop / --no-ratio-crop  按照片打印尺寸比例裁剪，不缩放到电子像素尺寸
   -svr, --save-resized / --no-save-resized
                                   是否保存调整尺寸后的图像
   -al, --add-crop-lines / --no-add-crop-lines
@@ -192,8 +205,24 @@ Options:
   -lp, --layout-position INTEGER RANGE
                                   布局位置(0-8)：0=左上，1=上，2=右上，3=左中，4=中，5=右中，6=左下，7
                                   =下，8=右下  [0<=x<=8]
+  --layout / --no-layout          是否生成照片排版图
   -psp, --photos-spacing INTEGER  照片间距（像素，默认0）
+  --face-height-ratio FLOAT       脸大小（0-1，不能为0）：越大脸越大；先调此项  [default: 0.3]
+  --top-margin-ratio FLOAT        头顶留白（0-1）：越大脸越下移；脸大小合适后再调此项  [default:
+                                  0.175]
+  --skin-retouch / --no-skin-retouch
+                                  开启自动美肤
+  --skin-retouch-model-dir PATH   美肤模型目录（需包含 skin_retouch_mask.onnx、retouch_ge
+                                  nerator.onnx、face_detector.onnx）
+  --retouch-degree FLOAT RANGE    磨皮程度（0-1）  [default: 0.7; 0.0<=x<=1.0]
+  --whitening-degree FLOAT RANGE  美白程度（0-1）  [default: 0.8; 0.0<=x<=1.0]
   --help                          Show this message and exit.
+```
+
+人像构图可通过人脸高度和头顶留白分别调整。例如，以下参数会让头像更大并减少头顶留白：
+
+```shell
+python main.py input.jpg --face-height-ratio 0.55 --top-margin-ratio 0.10
 ```
 
 ### 🗂 配置文件
@@ -304,6 +333,8 @@ http://127.0.0.1:7860
 - [Yunnet](https://github.com/ShiqiYu/libfacedetection)
 - [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)
 - [ultralytics](https://github.com/ultralytics/ultralytics)
+- [cv_unet_skin_retouching_torch](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary)
+- [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface)
 
 或许你会对图片压缩部分感兴趣，那是我另一个开源项目：
 

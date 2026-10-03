@@ -172,16 +172,45 @@ def composite_bgra_on_rgb(image, rgb_list):
     out = fg * alpha[..., None] + bg_bgr * (1.0 - alpha[..., None])
     return out.astype(np.uint8)
 
-def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0):
+
+def resize_photo_for_layout(image, photo_requirements, photo_type):
+    photo_info = photo_requirements.get_resize_image_list(photo_type)
+    width, height = photo_info['width'], photo_info['height']
+    orig_height, orig_width = image.shape[:2]
+    aspect_ratio = width / height
+
+    crop_width = orig_width
+    crop_height = int(crop_width / aspect_ratio)
+    if crop_height > orig_height:
+        crop_height = orig_height
+        crop_width = int(crop_height * aspect_ratio)
+
+    x_start = (orig_width - crop_width) // 2
+    y_start = 0
+    cropped_image = image[y_start:y_start + crop_height, x_start:x_start + crop_width]
+    return cv2.resize(cropped_image, (width, height), interpolation=cv2.INTER_AREA)
+
+
+def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requirements, photo_type, photo_sheet_size, rgb_list, compress=False, change_background=False, rotate=False, resize=True, ratio_crop=False, layout=True, sheet_rows=3, sheet_cols=3, add_crop_lines=True, layout_position=4, photos_spacing=0, face_height_ratio=0.30, top_margin_ratio=0.175, face_detector='yunet', skin_retouch=False, skin_retouch_model_dir=MODEL_DIR, retouch_degree=0.7, whitening_degree=0.8):
     """Process the image with specified parameters."""
     processor = ImageProcessor(img_path, 
                             yolov8_model_path=yolov8_path,
                             yunet_model_path=yunet_path,
                             RMBG_model_path=rmbg_path,
                             rgb_list=rgb_list, 
-                            y_b=compress)
+                            y_b=compress,
+                            face_detector_type=face_detector)
+    processor.photo_requirements_detector = photo_requirements
 
     processor.crop_and_correct_image()
+
+    if skin_retouch:
+        # Retouch on the 3-channel BGR result before any background
+        # replacement, so the transparent-background cache stays valid.
+        from tool.SkinRetouch import retouch_image
+        processor.photo.image = retouch_image(
+            processor.photo.image, skin_retouch_model_dir, retouch_degree, whitening_degree)
+
     
     # Get file size limits from CSV if enabled
     file_size_limits = {}
@@ -194,16 +223,27 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
         processor.change_background([255, 255, 255, 0])
         corrected_image_alpha = processor.photo.image
 
-    if resize:
-        processor.resize_image(photo_type)
+    if ratio_crop:
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
+    elif resize:
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
 
     corrected_image_alpha = processor.photo.image
     corrected_image_bgr = composite_bgra_on_rgb(corrected_image_alpha, rgb_list)
 
-    sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
-    sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
-    generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
-    photo_sheet_cv = generator.generate_photo_sheet(corrected_image_bgr, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+    if layout:
+        sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+        sheet_width, sheet_height, sheet_resolution = sheet_info['width'], sheet_info['height'], sheet_info['resolution']
+        generator = PhotoSheetGenerator((sheet_width, sheet_height), sheet_resolution)
+        try:
+            photo_sheet_cv = generator.generate_photo_sheet(corrected_image_bgr, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+        except ValueError:
+            if not ratio_crop:
+                raise
+            layout_image_bgr = resize_photo_for_layout(corrected_image_bgr, photo_requirements, photo_type)
+            photo_sheet_cv = generator.generate_photo_sheet(layout_image_bgr, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
+    else:
+        photo_sheet_cv = corrected_image_bgr
 
     return {
         'final_image': photo_sheet_cv,
@@ -322,13 +362,18 @@ def create_demo(initial_language, deployment_mode):
                             preset_color = gr.Dropdown(choices=color_choices, label=t('preset_color', initial_language), value=t('custom_color', initial_language))
                             background_color = gr.ColorPicker(label=t('background_color', initial_language), value="#FFFFFF")
                         layout_only = gr.Checkbox(label=t('layout_only', initial_language), value=False)
+                        ratio_crop = gr.Checkbox(label=t('ratio_crop', initial_language), value=False)
+                        layout = gr.Checkbox(label=t('layout', initial_language), value=True)
                         sheet_rows = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_rows', initial_language))
                         sheet_cols = gr.Slider(minimum=1, maximum=10, step=1, value=3, label=t('sheet_cols', initial_language))
                         photos_spacing = gr.Slider(minimum=0, maximum=100, step=1, value=0, label=t('photos_spacing', initial_language))
+                        face_height_ratio = gr.Slider(minimum=0.01, maximum=1.0, step=0.01, value=0.30, label=t('face_height_ratio', initial_language))
+                        top_margin_ratio = gr.Slider(minimum=0.0, maximum=1.0, step=0.005, value=0.175, label=t('top_margin_ratio', initial_language))
                     
                     with gr.TabItem(t('advanced_settings', initial_language)) as advanced_settings_tab:
                         yolov8_path = gr.Textbox(label=t('yolov8_path', initial_language), value=DEFAULT_YOLOV8_PATH)
                         yunet_path = gr.Textbox(label=t('yunet_path', initial_language), value=DEFAULT_YUNET_PATH)
+                        face_detector = gr.Radio(choices=['yunet', 'retinaface'], value='yunet', label=t('face_detector', initial_language))
                         rmbg_path = gr.Textbox(label=t('rmbg_path', initial_language), value=DEFAULT_RMBG_PATH)
                         size_config = gr.Textbox(label=t('size_config', initial_language), value=DEFAULT_SIZE_CONFIG.format(initial_language))
                         color_config = gr.Textbox(label=t('color_config', initial_language), value=DEFAULT_COLOR_CONFIG.format(initial_language))
@@ -337,6 +382,10 @@ def create_demo(initial_language, deployment_mode):
                         rotate = gr.Checkbox(label=t('rotate', initial_language), value=False)
                         resize = gr.Checkbox(label=t('resize', initial_language), value=True)
                         add_crop_lines = gr.Checkbox(label=t('add_crop_lines', initial_language), value=True)
+                        skin_retouch = gr.Checkbox(label=t('skin_retouch', initial_language), value=False)
+                        skin_retouch_model_dir = gr.Textbox(label=t('skin_retouch_model_dir', initial_language), value=MODEL_DIR)
+                        retouch_degree = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.7, label=t('retouch_degree', initial_language))
+                        whitening_degree = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.8, label=t('whitening_degree', initial_language))
                         
                         # Add file size limit control items
                         with gr.Row():
@@ -433,7 +482,9 @@ def create_demo(initial_language, deployment_mode):
 
         def process_and_display(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config, photo_type,
                                         photo_sheet_size, background_color, compress, change_background, rotate, resize,
-                                        sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing):
+                                        ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
+                                        layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                                        skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree):
             """Process and display image(s) with given parameters (supports batch)."""
             # Update the configuration file path of ConfigManager
             config_manager.size_file = size_config
@@ -457,11 +508,11 @@ def create_demo(initial_language, deployment_mode):
                 return None
 
             rgb_list = parse_color(background_color)
-            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
-            file_format = sheet_info.get('file_format', 'png').lower()
+            output_info = photo_requirements.get_resize_image_list(photo_sheet_size if layout else photo_type)
+            file_format = output_info.get('file_format', 'png').lower()
             if file_format == 'jpg':
                 file_format = 'jpeg'
-            resolution = sheet_info.get('resolution', 300)
+            resolution = output_info.get('resolution', 300)
 
             final_images_rgb = []
             corrected_images_rgb = []
@@ -484,11 +535,20 @@ def create_demo(initial_language, deployment_mode):
                         change_background=change_background and not layout_only,
                         rotate=rotate,
                         resize=resize,
+                        ratio_crop=ratio_crop,
+                        layout=layout,
                         sheet_rows=sheet_rows,
                         sheet_cols=sheet_cols,
                         add_crop_lines=add_crop_lines,
                         layout_position=layout_position,
-                        photos_spacing=photos_spacing
+                        photos_spacing=photos_spacing,
+                        face_height_ratio=face_height_ratio,
+                        top_margin_ratio=top_margin_ratio,
+                        face_detector=face_detector,
+                        skin_retouch=skin_retouch,
+                        skin_retouch_model_dir=skin_retouch_model_dir,
+                        retouch_degree=retouch_degree,
+                        whitening_degree=whitening_degree
                     )
                 except Exception as e:
                     errors.append(f"{Path(img_path).name}: {str(e)}")
@@ -511,8 +571,9 @@ def create_demo(initial_language, deployment_mode):
 
         def process_and_display_wrapper(input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                                                 photo_type, photo_sheet_size, background_color, compress, change_background,
-                                                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                                                rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
+                                                target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                                                skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree,
                                                 lang, previous_temp_dir):
             """Wrapper for process_and_display that also prepares download files (supports batch)."""
             nonlocal current_file_format, current_resolution
@@ -523,7 +584,9 @@ def create_demo(initial_language, deployment_mode):
             result = process_and_display(
                 input_files, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                 photo_type, photo_sheet_size, background_color, compress, change_background,
-                rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines, layout_position, photos_spacing
+                rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
+                layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree
             )
 
             if not result:
@@ -568,11 +631,12 @@ def create_demo(initial_language, deployment_mode):
             try:
                 final_paths = []
                 corrected_paths = []
+                final_suffix = 'sheet' if layout else 'photo'
 
                 for idx, img_path in enumerate(processed_paths):
                     stem = sanitize_filename(Path(img_path).stem) or f"image_{idx + 1}"
 
-                    final_path = os.path.join(output_dir, f"{stem}_sheet.{current_file_format}")
+                    final_path = os.path.join(output_dir, f"{stem}_{final_suffix}.{current_file_format}")
                     save_image(final_images[idx], final_path, current_file_format, current_resolution)
                     final_paths.append(final_path)
 
@@ -631,7 +695,7 @@ def create_demo(initial_language, deployment_mode):
 
         def update_background_preview(background_color, photo_type, photo_sheet_size, compress, use_csv_size,
                                       target_size, size_range_min, size_range_max, change_background, layout_only,
-                                      rotate, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
+                                      rotate, ratio_crop, layout, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
                                       lang, corrected_images_alpha, processed_paths, final_images, corrected_images,
                                       offset, previous_temp_dir):
             """
@@ -652,18 +716,20 @@ def create_demo(initial_language, deployment_mode):
 
             rgb_list = parse_color(background_color)
 
-            sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
-            file_format = sheet_info.get('file_format', 'png').lower()
+            output_info = photo_requirements.get_resize_image_list(photo_sheet_size if layout else photo_type)
+            file_format = output_info.get('file_format', 'png').lower()
             if file_format == 'jpg':
                 file_format = 'jpeg'
-            resolution = sheet_info.get('resolution', 300)
+            resolution = output_info.get('resolution', 300)
 
             current_file_format = file_format if file_format else 'png'
             current_resolution = resolution if resolution else 300
 
-            # Rebuild corrected + sheet images (RGB for display)
-            sheet_width, sheet_height = sheet_info['width'], sheet_info['height']
-            generator = PhotoSheetGenerator((sheet_width, sheet_height), current_resolution)
+            # Rebuild corrected + final images (RGB for display)
+            if layout:
+                sheet_info = photo_requirements.get_resize_image_list(photo_sheet_size)
+                sheet_width, sheet_height = sheet_info['width'], sheet_info['height']
+                generator = PhotoSheetGenerator((sheet_width, sheet_height), current_resolution)
 
             final_images_rgb = []
             corrected_images_rgb = []
@@ -672,16 +738,33 @@ def create_demo(initial_language, deployment_mode):
                 corrected_bgr = composite_bgra_on_rgb(img, rgb_list)
                 corrected_images_rgb.append(cv2.cvtColor(corrected_bgr, cv2.COLOR_BGR2RGB))
 
-                sheet_bgr = generator.generate_photo_sheet(
-                    corrected_bgr,
-                    sheet_rows,
-                    sheet_cols,
-                    rotate,
-                    add_crop_lines,
-                    layout_position,
-                    photos_spacing
-                )
-                final_images_rgb.append(cv2.cvtColor(sheet_bgr, cv2.COLOR_BGR2RGB))
+                if layout:
+                    try:
+                        sheet_bgr = generator.generate_photo_sheet(
+                            corrected_bgr,
+                            sheet_rows,
+                            sheet_cols,
+                            rotate,
+                            add_crop_lines,
+                            layout_position,
+                            photos_spacing
+                        )
+                    except ValueError:
+                        if not ratio_crop:
+                            raise
+                        layout_bgr = resize_photo_for_layout(corrected_bgr, photo_requirements, photo_type)
+                        sheet_bgr = generator.generate_photo_sheet(
+                            layout_bgr,
+                            sheet_rows,
+                            sheet_cols,
+                            rotate,
+                            add_crop_lines,
+                            layout_position,
+                            photos_spacing
+                        )
+                    final_images_rgb.append(cv2.cvtColor(sheet_bgr, cv2.COLOR_BGR2RGB))
+                else:
+                    final_images_rgb.append(cv2.cvtColor(corrected_bgr, cv2.COLOR_BGR2RGB))
 
             # Build file size limits for corrected image downloads (optional)
             file_size_limits = {}
@@ -717,11 +800,12 @@ def create_demo(initial_language, deployment_mode):
             try:
                 final_paths = []
                 corrected_paths = []
+                final_suffix = 'sheet' if layout else 'photo'
 
                 for idx, img_path in enumerate(processed_paths):
                     stem = sanitize_filename(Path(img_path).stem) or f"image_{idx + 1}"
 
-                    final_path = os.path.join(output_dir, f"{stem}_sheet.{current_file_format}")
+                    final_path = os.path.join(output_dir, f"{stem}_{final_suffix}.{current_file_format}")
                     save_image(final_images_rgb[idx], final_path, current_file_format, current_resolution)
                     final_paths.append(final_path)
 
@@ -909,9 +993,14 @@ def create_demo(initial_language, deployment_mode):
                        preset_color: gr.update(choices=new_color_choices, label=t('preset_color', lang)),
                        background_color: gr.update(label=t('background_color', lang)),
                        layout_only: gr.update(label=t('layout_only', lang)),
+                       ratio_crop: gr.update(label=t('ratio_crop', lang)),
+                       layout: gr.update(label=t('layout', lang)),
                        sheet_rows: gr.update(label=t('sheet_rows', lang)),
                        sheet_cols: gr.update(label=t('sheet_cols', lang)),
                        photos_spacing: gr.update(label=t('photos_spacing', lang)),
+                       face_height_ratio: gr.update(label=t('face_height_ratio', lang)),
+                       top_margin_ratio: gr.update(label=t('top_margin_ratio', lang)),
+                       face_detector: gr.update(label=t('face_detector', lang)),
                        yolov8_path: gr.update(label=t('yolov8_path', lang)),
                        yunet_path: gr.update(label=t('yunet_path', lang)),
                        rmbg_path: gr.update(label=t('rmbg_path', lang)),
@@ -921,6 +1010,10 @@ def create_demo(initial_language, deployment_mode):
                        change_background: gr.update(label=t('change_background', lang)),
                        rotate: gr.update(label=t('rotate', lang)), resize: gr.update(label=t('resize', lang)),
                        add_crop_lines: gr.update(label=t('add_crop_lines', lang)),
+                       skin_retouch: gr.update(label=t('skin_retouch', lang)),
+                       skin_retouch_model_dir: gr.update(label=t('skin_retouch_model_dir', lang)),
+                       retouch_degree: gr.update(label=t('retouch_degree', lang)),
+                       whitening_degree: gr.update(label=t('whitening_degree', lang)),
                        use_csv_size: gr.update(label=t('use_csv_size', lang)),
                        target_size: gr.update(label=t('target_size', lang)),
                        size_range_min: gr.update(label=t('size_range_min', lang)),
@@ -1115,15 +1208,15 @@ def create_demo(initial_language, deployment_mode):
             return updates
         
         lang_outputs = [title, input_image, lang_dropdown, photo_type, photo_sheet_size, preset_color, background_color,
-                sheet_rows, sheet_cols, photos_spacing, layout_only, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
-                compress, change_background, rotate, resize, add_crop_lines, use_csv_size, target_size, size_range_min, size_range_max,
+                sheet_rows, sheet_cols, photos_spacing, layout_only, ratio_crop, layout, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
+                compress, change_background, rotate, resize, add_crop_lines, skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree, face_detector, use_csv_size, target_size, size_range_min, size_range_max,
                 process_btn, output_image, corrected_output, download_final_file, download_corrected_file,
                 notification, key_param_tab, advanced_settings_tab, config_management_tab, confirm_advanced_settings,save_final_btn, save_final_path,
                 save_corrected_btn, save_corrected_path,
                 size_config_tab, color_config_tab, result_tab, corrected_image_tab,
                 size_df, color_df, add_size_btn, update_size_btn,
                 add_color_btn, update_color_btn, config_notification,
-                size_option_type, language, layout_position]
+                size_option_type, language, layout_position, face_height_ratio, top_margin_ratio]
 
         lang_dropdown.change(
             update_language,
@@ -1155,7 +1248,7 @@ def create_demo(initial_language, deployment_mode):
             inputs=[
                 background_color, photo_type, photo_sheet_size, compress, use_csv_size,
                 target_size, size_range_min, size_range_max, change_background, layout_only,
-                rotate, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
+                rotate, ratio_crop, layout, sheet_rows, sheet_cols, add_crop_lines, layout_position, photos_spacing,
                 lang_dropdown, batch_corrected_images_alpha, batch_processed_paths,
                 batch_final_images, batch_corrected_images, batch_download_offset, batch_temp_dir
             ],
@@ -1188,8 +1281,9 @@ def create_demo(initial_language, deployment_mode):
             process_and_display_wrapper,
             inputs=[input_image, yolov8_path, yunet_path, rmbg_path, size_config, color_config,
                     photo_type, photo_sheet_size, background_color, compress, change_background,
-                    rotate, resize, sheet_rows, sheet_cols, layout_only, add_crop_lines,
-                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing,
+                    rotate, resize, ratio_crop, layout, sheet_rows, sheet_cols, layout_only, add_crop_lines,
+                    target_size, size_range_min, size_range_max, use_csv_size, layout_position, photos_spacing, face_height_ratio, top_margin_ratio, face_detector,
+                    skin_retouch, skin_retouch_model_dir, retouch_degree, whitening_degree,
                     lang_dropdown, batch_temp_dir],
             outputs=[output_image, corrected_output, download_final_file, download_corrected_file,
                      batch_final_images, batch_corrected_images, batch_corrected_images_alpha, batch_processed_paths,

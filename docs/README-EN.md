@@ -29,13 +29,21 @@ LiYing can run completely offline. All image processing operations are performed
 
 ### Showcase
 
-| ![test1](../images/test1.jpg) | ![test2](../images/test2.jpg) | ![test3](../images/test3.jpg) |
-| ----------------------------- | ---------------------------- | ---------------------------- |
-| ![test1_output_sheet](../images/test1_output_sheet.jpg)(1-inch on 5-inch photo paper - 3x3) | ![test2_output_sheet](../images/test2_output_sheet.jpg)(2-inch on 5-inch photo paper - 2x2) | ![test3_output_sheet](../images/test3_output_sheet.jpg)(1-inch on 6-inch photo paper - 4x2) |
+| 1-inch · 5-inch paper 3×3 · white · crop lines | 2-inch · 5-inch paper 2×2 · blue | 1-inch · 6-inch paper 4×2 · red · photos rotated 90° · RMBG-2.0 | 1-inch · 6-inch paper 4×2 · dark blue · photo spacing · top-left + bottom-right dual layout filling the paper |
+| :---: | :---: | :---: | :---: |
+| ![test1_output_sheet](../images/test1_output_sheet.jpg) | ![test2_output_sheet](../images/test2_output_sheet.jpg) | ![test3_output_sheet](../images/test3_output_sheet.jpg) | ![test4_output_sheet](../images/test4_output_sheet.jpg) |
+
+**Skin Retouching** (`--skin-retouch` enables it with a single flag; left: original, right: default degrees — smoothing 0.7 / whitening 0.8)
+
+![test4_retouch_compare](../images/test4_retouch_compare.jpg)
+
+All examples above can be regenerated with one command: `python docs/scripts/generate_examples.py`.
 
 **Note: This project is specifically for processing passport photos and may not work perfectly on any arbitrary image. The input images should be standard single-person portrait photos.**
 
 **It is normal for unexpected results to occur if you use complex images to create passport photos.**
+
+**The test4 sample photo is from [Pexels](https://www.pexels.com/photo/portrait-of-a-woman-with-natural-beauty-35765754/) by Bello Danhajiya, used under the [Pexels License](https://www.pexels.com/license/).**
 
 <br>
 
@@ -119,11 +127,14 @@ Download the models used by the project and place them in `LiYing/src/model`, or
 
 | Purpose                   | Model Name        | Download Link                                                                                                                                           | Source                                                     |
 |---------------------------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
-| Face Recognition          | Yunnet            | [Download Link](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx)                           | [Yunnet](https://github.com/ShiqiYu/libfacedetection)      |
+| Face Recognition          | Yunnet / Retinaface (optional for layout, required for skin retouching) | [Yunnet Download Link](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx) / [Retinaface Project Link](https://github.com/biubug6/Pytorch_Retinaface) | [Yunnet](https://github.com/ShiqiYu/libfacedetection) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 | Subject Recognition and Background Replacement | RMBG-1.4/2.0 | [1.4 Download Link](https://huggingface.co/briaai/RMBG-1.4/blob/main/onnx/model.onnx)/[2.0 Download Link](https://huggingface.co/briaai/RMBG-2.0/tree/main/onnx) | [BRIA AI](https://huggingface.co/briaai)         |
 | Body Recognition          | yolov8n-pose      | [Download Link](https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n-pose.pt)                                                         | [ultralytics](https://github.com/ultralytics/ultralytics) |
+| Skin Retouching           | cv_unet_skin_retouching_torch / Retinaface | [Retouching Link](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary) / [Retinaface Project Link](https://github.com/biubug6/Pytorch_Retinaface) | [ModelScope damo](https://modelscope.cn/organization/damo) / [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) |
 
 **Note: For the yolov8n-pose model, you need to export it to an ONNX model. Refer to the [official documentation](https://docs.ultralytics.com/integrations/onnx/) for instructions.**
+
+**Note: For the skin retouching feature, you can follow [skin-retouching-onnxruntime](https://github.com/aoguai/skin-retouching-onnxruntime) to export the ONNX models yourself and rename the exported `model.onnx` to `skin_retouch_mask.onnx`.**
 
 We also provide pre-converted ONNX models that you can download and use directly:
 
@@ -164,6 +175,10 @@ Usage: main.py [OPTIONS] IMG_PATH
 Options:
   -y, --yolov8-model-path PATH    Path to YOLOv8 model
   -u, --yunet-model-path PATH     Path to YuNet model
+  --face-detector [yunet|retinaface]
+                                  Face detector for the layout pipeline;
+                                  retinaface reuses the skin-retouching
+                                  face_detector.onnx  [default: yunet]
   -r, --rmbg-model-path PATH      Path to RMBG model
   -sz, --size-config PATH         Path to size configuration file
   -cl, --color-config PATH        Path to color configuration file
@@ -187,6 +202,8 @@ Options:
   -sc, --sheet-cols INTEGER       Number of columns in the photo sheet
   -rt, --rotate / --no-rotate     Whether to rotate the photo by 90 degrees
   -rs, --resize / --no-resize     Whether to resize the image
+  --ratio-crop / --no-ratio-crop  Crop by photo print-size ratio without
+                                  resizing to electronic pixels
   -svr, --save-resized / --no-save-resized
                                   Whether to save the resized image
   -al, --add-crop-lines / --no-add-crop-lines
@@ -202,9 +219,31 @@ Options:
                                   2=top-right, 3=middle-left, 4=center,
                                   5=middle-right, 6=bottom-left, 7=bottom,
                                   8=bottom-right  [0<=x<=8]
+  --layout / --no-layout          Whether to generate a photo sheet
   -psp, --photos-spacing INTEGER  Pixel spacing between photos in the sheet
                                   (default: 0)
+  --face-height-ratio FLOAT       Face size (0-1, non-zero): larger value
+                                  makes the face larger; adjust this first
+                                  [default: 0.3]
+  --top-margin-ratio FLOAT        Top margin (0-1): larger value moves the
+                                  face down; adjust after face size  [default:
+                                  0.175]
+  --skin-retouch / --no-skin-retouch
+                                  Enable automatic skin retouching
+  --skin-retouch-model-dir PATH   Directory of skin retouching models
+                                  (skin_retouch_mask.onnx,
+                                  retouch_generator.onnx, face_detector.onnx)
+  --retouch-degree FLOAT RANGE    Skin retouching degree (0-1)  [default: 0.7;
+                                  0.0<=x<=1.0]
+  --whitening-degree FLOAT RANGE  Skin whitening degree (0-1)  [default: 0.8;
+                                  0.0<=x<=1.0]
   --help                          Show this message and exit.
+```
+
+Portrait composition can be adjusted separately by changing the face height and the amount of space above the head. For example, the following parameters will make the face larger and reduce the space above the head：
+
+```shell
+python main.py input.jpg --face-height-ratio 0.55 --top-margin-ratio 0.10
 ```
 
 ### 🗂 Configuration Files
@@ -313,6 +352,8 @@ Special thanks to the following projects and contributors for providing models a
 - [Yunnet](https://github.com/ShiqiYu/libfacedetection)
 - [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)
 - [ultralytics](https://github.com/ultralytics/ultralytics)
+- [cv_unet_skin_retouching_torch](https://modelscope.cn/models/damo/cv_unet_skin_retouching_torch/summary)
+- [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface)
 
 You might also be interested in the image compression part, which is another open-source project of mine:
 
