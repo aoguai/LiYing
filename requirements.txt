@@ -4,7 +4,10 @@ colorama
 mozjpeg_lossless_optimization
 onnxruntime>=1.14.0
 orjson>=3.10.7
-gradio>=4.44.1
+gradio>=4.44.1,<5
+pydantic>=2.0,<2.11
+starlette<1.0
+huggingface-hub>=0.19.3,<1.0
 Pillow
 opencv-python
 numpy

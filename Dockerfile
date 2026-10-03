@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir \
     "onnxruntime>=1.17.0" \
     "orjson>=3.9.15" \
-    "gradio>=4.19.2" \
+    "gradio>=4.44.1,<5" \
     -r requirements.txt
 
 COPY . .

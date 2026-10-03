@@ -137,9 +137,9 @@ pip install -r requirements.txt # 安装依赖
 
 | 下载方式         | 链接                                                                             |
 |--------------|--------------------------------------------------------------------------------|
-| Google Drive | [下载链接](https://drive.google.com/file/d/1F8EQfwkeq4s-P2W4xQjD28c4rxPuX1R3/view) |
-| 百度网盘         | [下载链接(提取码：ahr9)](https://pan.baidu.com/s/1QhzW53vCbhkIzvrncRqJow?pwd=ahr9)             |
-| Github releases | [下载链接](https://github.com/aoguai/LiYing/releases/latest)             |
+| Google Drive | [下载链接](https://drive.google.com/drive/folders/1S36eICyt9rqBtf0TT6-62kjBk-nOfxAu) |
+| Github releases | [下载链接](https://github.com/aoguai/LiYing/releases/tag/LiYingModel)             |
+| 百度网盘         | [下载链接(提取码：8gtq)](https://pan.baidu.com/s/1bf-NkuXQCuncYsOlCJvPgw?pwd=8gtq)             |
 
 #### 🚀 运行
 
@@ -274,50 +274,6 @@ http://127.0.0.1:7860
 如遇问题，建议先检查模型是否正确放置于 `src/model/` 下，并确认端口未被占用。
 
 需要了解更多部署细节或进阶配置，可查看 [`Dockerfile`](./Dockerfile) 和 [`docker-compose.yml`](./docker-compose.yml)。
-
-<br>
-
-## 🧱 更新日志
-
-**注意该版本对 CIL 参数进行了更改，为了避免问题请你仔细阅读最新 CIL 帮助文档**
-
-- **2026/02/16 更新**
-  - 新增 Docker 部署支持
-  - 新增 GPU 推理加速支持
-  - 新增 `photos-spacing` 选项
-  - 新增 `layout-position` 选项
-  - 新增 支持透明背景输出与快速背景预览
-  - 新增 WebUI 支持批量上传/处理与批量下载
-  - 优化 WebUI 在服务器部署场景下的图片下载
-  - 修复 其他已知 BUG
-
-<details> 
-    <summary>往期更新日志</summary>
-
-- **2025/06/30 更新**
-  - 新增 size_range 选项，允许用户输入照片文件大小的最小值和最大值，尝试在保持质量的同时确保文件大小在范围内
-  - 新增 target_size 选项，用于控制照片文件大小
-  - 新增 RMBG-2.0 与 yolov8 较高迭代版本的支持（需要在 Latest 环境下）
-  - 新增 CLI/BAT/WEBUI 版本的自动构建
-  - 新增 模型路径配置选项
-  - 修复 已知BUG
-
-- **2025/02/07 更新**
-  - **添加 WebUI**
-  - 优化 配置方式，用 CSV 替换 INI 配置
-  - 添加 CI/CD 方便自动构建与测试
-  - 添加 仅排版照片, 是否在照片表格上添加裁剪线 选项
-  - 完善 对非脸部图像的兜底处理
-  - 修复 已知BUG
-  - 添加修正补充了更多尺寸
-
-- **2024/08/06 更新**
-  - 新增 photo-type 和 photo-sheet-size 支持直接输入宽高像素，支持使用 data.ini 配置
-  - 修复 部分 i18n 导致的已知问题，现在可以兼容中英文配置
-  - 修复 其他已知BUG
-
-</details>
-
 <br>
 
 ## 🙏 致谢

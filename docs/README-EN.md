@@ -140,9 +140,9 @@ We also provide pre-converted ONNX models that you can download and use directly
 
 | Download Method  | Link  |
 |-----------------|--------------------------------------------------------------------------------|
-| Google Drive   | [Download Link](https://drive.google.com/file/d/1F8EQfwkeq4s-P2W4xQjD28c4rxPuX1R3/view) |
-| Baidu Netdisk  | [Download Link (Extraction Code: ahr9)](https://pan.baidu.com/s/1QhzW53vCbhkIzvrncRqJow?pwd=ahr9) |
-| GitHub Releases | [Download Link](https://github.com/aoguai/LiYing/releases/latest) |
+| Google Drive   | [Download Link](https://drive.google.com/drive/folders/1S36eICyt9rqBtf0TT6-62kjBk-nOfxAu) |
+| GitHub Releases | [Download Link](https://github.com/aoguai/LiYing/releases/tag/LiYingModel) |
+| Baidu Netdisk  | [Download Link (Extraction Code: 8gtq)](https://pan.baidu.com/s/1bf-NkuXQCuncYsOlCJvPgw?pwd=8gtq) |
 
 ### 🚀 Running
 
@@ -295,50 +295,6 @@ http://127.0.0.1:7860
 If you encounter any issues, please first verify that at least one model file is placed in `src/model/` and ensure the port is not already in use.
 
 For more details or advanced configuration, check the [`Dockerfile`](./Dockerfile) and [`docker-compose.yml`](./docker-compose.yml).
-
-<br>
-
-## 🧱 Changelog
-
-**Note: This version includes changes to CIL parameters. Please carefully read the latest CIL help documentation to avoid issues.**
-
-- **2026/02/16 Update**
-  - Added Docker deployment support.
-  - Added GPU-accelerated inference support.
-  - Added `photos-spacing` option.
-  - Added `layout-position` option.
-  - Added support for transparent background output and fast background preview.
-  - Added batch upload/processing and batch downloads for WebUI.
-  - Optimized WebUI image download for server deployment.
-  - Fixed other known bugs.
-
-<details>
-    <summary>Previous Changelog</summary>
-
-- **2025/06/30 Update**
-  - Added `size_range` option, allowing users to input a min and max file size, attempting to maintain quality while keeping the file size within the range.
-  - Added `target_size` option to control the photo file size.
-  - Added support for RMBG-2.0 and higher iterations of yolov8 (requires Latest environment).
-  - Added automatic builds for CLI/BAT/WEBUI versions.
-  - Added model path configuration options.
-  - Fixed known bugs.
-
-- **2025/02/07 Update**
-  - **Added WebUI**
-  - Optimized configuration method by replacing INI files with CSV
-  - Added CI/CD for automated builds and testing
-  - Added options for layout-only photos and whether to add crop lines on the photo grid
-  - Improved fallback handling for non-face images
-  - Fixed known bugs
-  - Added and refined more photo sizes
-
-- **2024/08/06 Update**
-  - Added support for entering width and height in pixels directly for `photo-type` and `photo-sheet-size`, and support for configuration via `data.ini`.
-  - Fixed issues related to some i18n configurations; now compatible with both English and Chinese settings.
-  - Fixed other known bugs.
-
-</details>
-
 <br>
 
 ## 🙏 Acknowledgments

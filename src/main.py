@@ -5,6 +5,18 @@ import os
 import sys
 import warnings
 
+
+def configure_output_encoding():
+    """Keep CLI output Unicode-safe on Windows consoles and redirected streams."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, 'reconfigure', None)
+        if reconfigure:
+            reconfigure(encoding='utf-8', errors='replace')
+
+
+configure_output_encoding()
+
+
 def get_app_path():
     """Get the application base path for both dev and PyInstaller environments."""
     if getattr(sys, 'frozen', False):

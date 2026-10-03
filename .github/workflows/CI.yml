@@ -8,80 +8,87 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write release notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 版本说明
+
+          本发布包含以下三种版本：
+
+          | 版本类型 | 版本 | 运行环境 / 关键依赖 | 特点 |
+          | --- | --- | --- | --- |
+          | CLI | Compatible | Python 3.8.10 + onnxruntime 1.14.0 | 单文件可执行（pyinstaller）<br>体积最小，启动最快<br>仅支持命令行参数运行<br>适合自动化脚本或批处理调用<br>兼容性最好，适合较老系统 |
+          | CLI | Latest | Python 3.11.8 + onnxruntime >= 1.14.0 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
+          | BAT | Compatible | Python 3.8.10 (Embedded) + onnxruntime 1.14.0 | 包含完整 Python 环境（嵌入式）<br>不包含 WebUI 相关组件<br>支持命令行和批处理脚本运行<br>兼容性好，适合较老系统 |
+          | BAT | Latest | Python 3.11.8 (Embedded) + onnxruntime >= 1.14.0 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
+          | WebUI | Compatible | Python 3.8.10 (Embedded) + gradio 4.44.1 | 完整版本，包含所有功能<br>包含 WebUI 图形界面<br>包含完整的 Python 环境（嵌入式）<br>支持命令行、批处理脚本和网页界面运行<br>兼容性好，适合较老系统 |
+          | WebUI | Latest | Python 3.11.8 (Embedded) + gradio >= 4.44.1,<5 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
+
+          ### 选择建议
+
+          | 需求 | 推荐 |
+          | --- | --- |
+          | 只需要命令行功能 | CLI |
+          | 需要批处理脚本功能 | BAT |
+          | 需要完整功能 | WebUI |
+          | 系统较老或遇到兼容性问题 | Compatible |
+          | 系统较新且想要获得最佳性能 | Latest |
+
+          ---
+
+          ## Version Description
+
+          This release includes three different versions:
+
+          | Type | Variant | Runtime / Key deps | Notes |
+          | --- | --- | --- | --- |
+          | CLI | Compatible | Python 3.8.10 + onnxruntime 1.14.0 | Single executable (pyinstaller)<br>Smallest size, fastest startup<br>Command-line args only<br>Ideal for automation scripts or batch processing<br>Best compatibility for older systems |
+          | CLI | Latest | Python 3.11.8 + onnxruntime >= 1.14.0 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
+          | BAT | Compatible | Python 3.8.10 (Embedded) + onnxruntime 1.14.0 | Includes complete embedded Python environment<br>Does not include WebUI components<br>Supports command-line and batch script execution<br>Good compatibility for older systems |
+          | BAT | Latest | Python 3.11.8 (Embedded) + onnxruntime >= 1.14.0 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
+          | WebUI | Compatible | Python 3.8.10 (Embedded) + gradio 4.44.1 | Complete version with all features<br>Includes WebUI graphical interface<br>Includes complete embedded Python environment<br>Supports command-line, batch scripts and web interface<br>Good compatibility for older systems |
+          | WebUI | Latest | Python 3.11.8 (Embedded) + gradio >= 4.44.1,<5 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
+
+          ### Selection Recommendations
+
+          | Need | Choose |
+          | --- | --- |
+          | Command-line only | CLI |
+          | Batch scripts | BAT |
+          | Full features | WebUI |
+          | Older system / compatibility issues | Compatible |
+          | Newer system / best performance | Latest |
+
+          ---
+
+          ### 更新日志 / Changelog
+
+          - 中文更新日志 / Chinese changelog: [docs/CHANGELOG.md](https://github.com/aoguai/LiYing/blob/main/docs/CHANGELOG.md)
+          - English changelog: [docs/CHANGELOG-EN.md](https://github.com/aoguai/LiYing/blob/main/docs/CHANGELOG-EN.md)
+          EOF
+
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            ## 版本说明
-
-            本发布包含以下三种版本：
-
-            | 版本类型 | 版本 | 运行环境 / 关键依赖 | 特点 |
-            | --- | --- | --- | --- |
-            | CLI | Compatible | Python 3.8.10 + onnxruntime 1.14.0 | 单文件可执行（pyinstaller）<br>体积最小，启动最快<br>仅支持命令行参数运行<br>适合自动化脚本或批处理调用<br>兼容性最好，适合较老系统 |
-            | CLI | Latest | Python 3.11.8 + onnxruntime >= 1.14.0 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
-            | BAT | Compatible | Python 3.8.10 (Embedded) + onnxruntime 1.14.0 | 包含完整 Python 环境（嵌入式）<br>不包含 WebUI 相关组件<br>支持命令行和批处理脚本运行<br>兼容性好，适合较老系统 |
-            | BAT | Latest | Python 3.11.8 (Embedded) + onnxruntime >= 1.14.0 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
-            | WebUI | Compatible | Python 3.8.10 (Embedded) + gradio 4.44.1 | 完整版本，包含所有功能<br>包含 WebUI 图形界面<br>包含完整 Python 环境（嵌入式）<br>支持命令行、批处理脚本和网页界面运行<br>兼容性好，适合较老系统 |
-            | WebUI | Latest | Python 3.11.8 (Embedded) + gradio >= 4.44.1 | 与 Compatible 功能相同，但使用更新的 Python 和依赖<br>性能更好，适合较新的系统 |
-
-            ### 选择建议
-
-            | 需求 | 推荐 |
-            | --- | --- |
-            | 只需要命令行功能 | CLI |
-            | 需要批处理脚本功能 | BAT |
-            | 需要完整功能 | WebUI |
-            | 系统较老或遇到兼容性问题 | Compatible |
-            | 系统较新且想要获得最佳性能 | Latest |
-
-            ---
-
-            ## Version Description
-
-            This release includes three different versions:
-
-            | Type | Variant | Runtime / Key deps | Notes |
-            | --- | --- | --- | --- |
-            | CLI | Compatible | Python 3.8.10 + onnxruntime 1.14.0 | Single executable (pyinstaller)<br>Smallest size, fastest startup<br>Command-line args only<br>Ideal for automation scripts or batch processing<br>Best compatibility for older systems |
-            | CLI | Latest | Python 3.11.8 + onnxruntime >= 1.14.0 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
-            | BAT | Compatible | Python 3.8.10 (Embedded) + onnxruntime 1.14.0 | Includes complete embedded Python environment<br>Does not include WebUI components<br>Supports command-line and batch script execution<br>Good compatibility for older systems |
-            | BAT | Latest | Python 3.11.8 (Embedded) + onnxruntime >= 1.14.0 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
-            | WebUI | Compatible | Python 3.8.10 (Embedded) + gradio 4.44.1 | Complete version with all features<br>Includes WebUI graphical interface<br>Includes complete embedded Python environment<br>Supports command-line, batch scripts, and web interface<br>Good compatibility for older systems |
-            | WebUI | Latest | Python 3.11.8 (Embedded) + gradio >= 4.44.1 | Same features as Compatible with newer Python/dependencies<br>Better performance for newer systems |
-
-            ### Selection Recommendations
-
-            | Need | Choose |
-            | --- | --- |
-            | Command-line only | CLI |
-            | Batch scripts | BAT |
-            | Full features | WebUI |
-            | Older system / compatibility issues | Compatible |
-            | Newer system / best performance | Latest |
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --notes-file release_notes.md
 
   build-cli-compatible:
     needs: create-release
     runs-on: windows-latest
     env:
       PYTHON_VERSION: '3.8.10'
+      PYTHONUTF8: '1'
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
@@ -92,10 +99,6 @@ jobs:
         python -m pip install "onnxruntime==1.14.0"
         python -m pip install "orjson==3.10.7"
         python -m pip install -r requirements.txt
-
-    - name: Create CLI-only requirements
-      run: |
-        (Get-Content requirements.txt) -notmatch 'gradio' | Set-Content cli-requirements.txt
 
     - name: Build CLI executable
       run: |
@@ -113,35 +116,35 @@ jobs:
           --hidden-import mozjpeg_lossless_optimization `
           src/main.py
 
+    - name: Smoke test executable
+      run: .\dist\LiYing_CLI_Compatible.exe --help
+
     - name: Prepare release package
       run: |
         New-Item -Path 'LiYing_CLI' -ItemType Directory
+        New-Item -Path 'LiYing_CLI/model' -ItemType Directory
         Copy-Item -Path 'dist/LiYing_CLI_Compatible.exe' -Destination 'LiYing_CLI'
         Copy-Item -Path 'data' -Destination 'LiYing_CLI' -Recurse
-        Compress-Archive -Path 'LiYing_CLI\*' -DestinationPath 'LiYing_CLI_Win_x64_Compatible.zip'
+        [System.IO.Compression.ZipFile]::CreateFromDirectory("$PWD\LiYing_CLI", "$PWD\LiYing_CLI_Win_x64_Compatible.zip")
 
     - name: Upload CLI Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_CLI_Win_x64_Compatible.zip
-        asset_name: LiYing_CLI_Win_x64_Compatible.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_CLI_Win_x64_Compatible.zip
 
   build-cli-latest:
     needs: create-release
     runs-on: windows-latest
     env:
       PYTHON_VERSION: '3.11.8'
+      PYTHONUTF8: '1'
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
@@ -153,10 +156,6 @@ jobs:
         python -m pip install "onnxruntime>=1.17.0"
         python -m pip install "orjson>=3.9.15"
         python -m pip install -r requirements.txt
-
-    - name: Create CLI-only requirements
-      run: |
-        (Get-Content requirements.txt) -notmatch 'gradio' | Set-Content cli-requirements.txt
 
     - name: Build CLI executable
       run: |
@@ -176,22 +175,21 @@ jobs:
           --hidden-import _cffi_backend `
           src/main.py
 
+    - name: Smoke test executable
+      run: .\dist\LiYing_CLI_Latest.exe --help
+
     - name: Prepare release package
       run: |
         New-Item -Path 'LiYing_CLI' -ItemType Directory
+        New-Item -Path 'LiYing_CLI/model' -ItemType Directory
         Copy-Item -Path 'dist/LiYing_CLI_Latest.exe' -Destination 'LiYing_CLI'
         Copy-Item -Path 'data' -Destination 'LiYing_CLI' -Recurse
-        Compress-Archive -Path 'LiYing_CLI\*' -DestinationPath 'LiYing_CLI_Win_x64_Latest.zip'
+        [System.IO.Compression.ZipFile]::CreateFromDirectory("$PWD\LiYing_CLI", "$PWD\LiYing_CLI_Win_x64_Latest.zip")
 
     - name: Upload CLI Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_CLI_Win_x64_Latest.zip
-        asset_name: LiYing_CLI_Win_x64_Latest.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_CLI_Win_x64_Latest.zip
 
   build-bat-compatible:
     needs: create-release
@@ -202,7 +200,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Download embeddable Python
       run: |
@@ -219,24 +217,24 @@ jobs:
         .\python.exe get-pip.py
         cd ..
 
-    - name: Create BAT-only requirements
-      run: |
-        (Get-Content requirements.txt) -notmatch 'gradio' | Set-Content bat-requirements.txt
-
     - name: Install dependencies
       run: |
         cd python-embed
         .\python.exe -m pip install "onnxruntime==1.14.0"
         .\python.exe -m pip install "orjson==3.10.7"
-        .\python.exe -m pip install -r ..\bat-requirements.txt
+        .\python.exe -m pip install -r ..\requirements.txt
         cd ..
+
+    - name: Smoke test CLI imports
+      run: .\python-embed\python.exe src\main.py --help
+      env:
+        PYTHONUTF8: '1'
 
     - name: Prepare BAT package
       run: |
         New-Item -Path 'LiYing_BAT' -ItemType Directory
         Copy-Item -Path 'data' -Destination 'LiYing_BAT' -Recurse
         Copy-Item -Path 'src' -Destination 'LiYing_BAT' -Recurse -Exclude @('webui')
-        Copy-Item -Path 'bat-requirements.txt' -Destination 'LiYing_BAT\requirements.txt'
         Get-ChildItem -Path 'run_*.bat' -Exclude 'run_webui.bat' | Copy-Item -Destination 'LiYing_BAT'
         Copy-Item -Path 'python-embed' -Destination 'LiYing_BAT\python-embed' -Recurse
 
@@ -245,14 +243,9 @@ jobs:
         Compress-Archive -Path 'LiYing_BAT\*' -DestinationPath 'LiYing_BAT_Win_x64_Compatible.zip'
 
     - name: Upload BAT Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_BAT_Win_x64_Compatible.zip
-        asset_name: LiYing_BAT_Win_x64_Compatible.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_BAT_Win_x64_Compatible.zip
 
   build-bat-latest:
     needs: create-release
@@ -263,7 +256,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Download embeddable Python
       run: |
@@ -280,24 +273,24 @@ jobs:
         .\python.exe get-pip.py
         cd ..
 
-    - name: Create BAT-only requirements
-      run: |
-        (Get-Content requirements.txt) -notmatch 'gradio' | Set-Content bat-requirements.txt
-
     - name: Install dependencies
       run: |
         cd python-embed
         .\python.exe -m pip install "onnxruntime>=1.17.0"
         .\python.exe -m pip install "orjson>=3.9.15"
-        .\python.exe -m pip install -r ..\bat-requirements.txt
+        .\python.exe -m pip install -r ..\requirements.txt
         cd ..
+
+    - name: Smoke test CLI imports
+      run: .\python-embed\python.exe src\main.py --help
+      env:
+        PYTHONUTF8: '1'
 
     - name: Prepare BAT package
       run: |
         New-Item -Path 'LiYing_BAT' -ItemType Directory
         Copy-Item -Path 'data' -Destination 'LiYing_BAT' -Recurse
         Copy-Item -Path 'src' -Destination 'LiYing_BAT' -Recurse -Exclude @('webui')
-        Copy-Item -Path 'bat-requirements.txt' -Destination 'LiYing_BAT\requirements.txt'
         Get-ChildItem -Path 'run_*.bat' -Exclude 'run_webui.bat' | Copy-Item -Destination 'LiYing_BAT'
         Copy-Item -Path 'python-embed' -Destination 'LiYing_BAT\python-embed' -Recurse
 
@@ -306,14 +299,9 @@ jobs:
         Compress-Archive -Path 'LiYing_BAT\*' -DestinationPath 'LiYing_BAT_Win_x64_Latest.zip'
 
     - name: Upload BAT Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_BAT_Win_x64_Latest.zip
-        asset_name: LiYing_BAT_Win_x64_Latest.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_BAT_Win_x64_Latest.zip
 
   build-webui-compatible:
     needs: create-release
@@ -324,7 +312,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Download embeddable Python
       run: |
@@ -347,8 +335,14 @@ jobs:
         .\python.exe -m pip install "onnxruntime==1.14.0"
         .\python.exe -m pip install "orjson==3.10.7"
         .\python.exe -m pip install "gradio==4.44.1"
+        .\python.exe -m pip install "huggingface-hub>=0.19.3,<1.0"
         .\python.exe -m pip install -r ..\requirements.txt
         cd ..
+
+    - name: Smoke test CLI imports
+      run: .\python-embed\python.exe src\main.py --help
+      env:
+        PYTHONUTF8: '1'
 
     - name: Prepare WebUI package
       run: |
@@ -364,14 +358,9 @@ jobs:
         Compress-Archive -Path 'LiYing_WebUI\*' -DestinationPath 'LiYing_WebUI_Win_x64_Compatible.zip'
 
     - name: Upload WebUI Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_WebUI_Win_x64_Compatible.zip
-        asset_name: LiYing_WebUI_Win_x64_Compatible.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_WebUI_Win_x64_Compatible.zip
 
   build-webui-latest:
     needs: create-release
@@ -382,7 +371,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Download embeddable Python
       run: |
@@ -404,9 +393,15 @@ jobs:
         cd python-embed
         .\python.exe -m pip install "onnxruntime>=1.17.0"
         .\python.exe -m pip install "orjson>=3.9.15"
-        .\python.exe -m pip install "gradio>=4.19.2"
+        .\python.exe -m pip install "gradio>=4.44.1,<5"
+        .\python.exe -m pip install "huggingface-hub>=0.19.3,<1.0"
         .\python.exe -m pip install -r ..\requirements.txt
         cd ..
+
+    - name: Smoke test CLI imports
+      run: .\python-embed\python.exe src\main.py --help
+      env:
+        PYTHONUTF8: '1'
 
     - name: Prepare WebUI package
       run: |
@@ -422,11 +417,6 @@ jobs:
         Compress-Archive -Path 'LiYing_WebUI\*' -DestinationPath 'LiYing_WebUI_Win_x64_Latest.zip'
 
     - name: Upload WebUI Package
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./LiYing_WebUI_Win_x64_Latest.zip
-        asset_name: LiYing_WebUI_Win_x64_Latest.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload "${{ github.ref_name }}" LiYing_WebUI_Win_x64_Latest.zip

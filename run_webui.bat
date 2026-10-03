@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Get system language using wmic
-for /f "tokens=2 delims==" %%a in ('wmic os get oslanguage /value') do set "LANG_ID=%%a"
+:: Get system language via PowerShell (wmic is removed on Windows 11 24H2+)
+for /f "usebackq delims=" %%a in (`powershell -NoProfile -Command "(Get-Culture).Name"`) do set "LANG_CODE=%%a"
 
-:: Convert language ID to language code
-if "%LANG_ID%"=="2052" (
+:: Map language code to app language (zh-* -> zh, everything else -> en)
+if "!LANG_CODE:~0,2!"=="zh" (
     set "LANG=zh"
 ) else (
     set "LANG=en"

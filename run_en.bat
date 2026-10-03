@@ -26,7 +26,8 @@ echo ----------------------------------------
 
 REM Prompt user for model paths
 set /p "change_models=Do you want to modify model paths? (yes/no, default is no): "
-if /i "!change_models!"=="yes" || /i "!change_models!"=="y" (
+if /i "!change_models!"=="y" set "change_models=yes"
+if /i "!change_models!"=="yes" (
     set /p "yolov8_path=Enter YOLOv8 model path (press Enter for default): "
     if "!yolov8_path!"=="" (
         set yolov8_param=
@@ -55,7 +56,8 @@ if /i "!change_models!"=="yes" || /i "!change_models!"=="y" (
 
 REM Prompt user for input parameters
 set /p "layout_only=Layout only without changing background (yes/no, default is no): "
-if /i "!layout_only!"=="yes" || /i "!layout_only!"=="y" (
+if /i "!layout_only!"=="y" set "layout_only=yes"
+if /i "!layout_only!"=="yes" (
     set layout_only=--layout-only
     set change_background=--no-change-background
     set save_background=--no-save-background
@@ -63,7 +65,8 @@ if /i "!layout_only!"=="yes" || /i "!layout_only!"=="y" (
 ) else (
     set layout_only=
     set /p "change_background=Change background (yes/no, default is no): "
-    if /i "!change_background!"=="yes" || /i "!change_background!"=="y" (
+    if /i "!change_background!"=="y" set "change_background=yes"
+if /i "!change_background!"=="yes" (
         set change_background=--change-background
         set /p "rgb_list=Enter RGB channel values (comma separated, default is 255,255,255): "
         if "!rgb_list!"=="red" set rgb_list=255,0,0
@@ -71,7 +74,8 @@ if /i "!layout_only!"=="yes" || /i "!layout_only!"=="y" (
         if "!rgb_list!"=="white" set rgb_list=255,255,255
         if "!rgb_list!"=="" set rgb_list=255,255,255
         set /p "save_background=Save images with changed background (yes/no, default is no): "
-        if /i "!save_background!"=="yes" || /i "!save_background!"=="y" (
+        if /i "!save_background!"=="y" set "save_background=yes"
+if /i "!save_background!"=="yes" (
             set save_background=--save-background
         ) else (
             set save_background=--no-save-background
@@ -84,23 +88,25 @@ if /i "!layout_only!"=="yes" || /i "!layout_only!"=="y" (
 )
 
 set /p "resize=Resize images (yes/no, default is yes): "
-if /i "!resize!"=="no" || /i "!resize!"=="n" (
+if /i "!resize!"=="n" set "resize=no"
+if /i "!resize!"=="no" (
     set resize=--no-resize
     set save_resized=--no-save-resized
 ) else (
     set resize=--resize
     set /p "save_resized=Save resized images (yes/no, default is no): "
-    if /i "!save_resized!"=="yes" || /i "!save_resized!"=="y" (
+    if /i "!save_resized!"=="y" set "save_resized=yes"
+if /i "!save_resized!"=="yes" (
         set save_resized=--save-resized
     ) else (
         set save_resized=--no-save-resized
     )
-    set /p "photo_type=Enter photo type (default is one_inch): "
-    if "!photo_type!"=="" set photo_type=one_inch
+    set /p "photo_type=Enter photo type (default is One Inch): "
+    if "!photo_type!"=="" set "photo_type=One Inch"
 )
 
-set /p "photo_sheet_size=Enter photo sheet size (default is five_inch): "
-if "!photo_sheet_size!"=="" set photo_sheet_size=five_inch
+set /p "photo_sheet_size=Enter photo sheet size (default is Five Inch): "
+if "!photo_sheet_size!"=="" set "photo_sheet_size=Five Inch"
 
 set /p "face_height_ratio=Enter face height ratio of the final photo (default 0.30; larger values make the face larger): "
 if "!face_height_ratio!"=="" set face_height_ratio=0.30
@@ -111,16 +117,19 @@ if "!top_margin_ratio!"=="" set top_margin_ratio=0.175
 set top_margin_ratio=--top-margin-ratio !top_margin_ratio!
 
 set /p "compress=Compress images (yes/no, default is no): "
-if /i "!compress!"=="yes" || /i "!compress!"=="y" (
+if /i "!compress!"=="y" set "compress=yes"
+if /i "!compress!"=="yes" (
     set compress=--compress
     set /p "use_csv_size=Use size limits from CSV file (yes/no, default is yes): "
-    if /i "!use_csv_size!"=="no" || /i "!use_csv_size!"=="n" (
+    if /i "!use_csv_size!"=="n" set "use_csv_size=no"
+if /i "!use_csv_size!"=="no" (
         set use_csv_size=--no-use-csv-size
         set /p "target_size=Enter target file size in KB (press Enter to skip): "
         if "!target_size!"=="" (
             set target_size=
             set /p "use_size_range=Do you want to set a file size range? (yes/no, default is no): "
-            if /i "!use_size_range!"=="yes" || /i "!use_size_range!"=="y" (
+            if /i "!use_size_range!"=="y" set "use_size_range=yes"
+if /i "!use_size_range!"=="yes" (
                 set /p "size_range=Enter file size range in KB (format: min,max, e.g., 10,20): "
                 if "!size_range!"=="" (
                     set size_range=
@@ -144,14 +153,16 @@ if /i "!compress!"=="yes" || /i "!compress!"=="y" (
 )
 
 set /p "save_corrected=Save corrected images (yes/no, default is no): "
-if /i "!save_corrected!"=="yes" || /i "!save_corrected!"=="y" (
+if /i "!save_corrected!"=="y" set "save_corrected=yes"
+if /i "!save_corrected!"=="yes" (
     set save_corrected=--save-corrected
 ) else (
     set save_corrected=--no-save-corrected
 )
 
 set /p "skin_retouch=Enable skin retouching (yes/no, default is no): "
-if /i "!skin_retouch!"=="yes" || /i "!skin_retouch!"=="y" (
+if /i "!skin_retouch!"=="y" set "skin_retouch=yes"
+if /i "!skin_retouch!"=="yes" (
     set skin_retouch=--skin-retouch
     set /p "retouch_degree=Enter retouch degree 0-1 (default is 0.7): "
     if "!retouch_degree!"=="" set retouch_degree=0.7
@@ -179,14 +190,16 @@ set /p "sheet_cols=Enter the number of columns in the photo sheet (default is 3)
 if "!sheet_cols!"=="" set sheet_cols=3
 
 set /p "rotate=Rotate photos 90 degrees (yes/no, default is no): "
-if /i "!rotate!"=="yes" || /i "!rotate!"=="y" (
+if /i "!rotate!"=="y" set "rotate=yes"
+if /i "!rotate!"=="yes" (
     set rotate=--rotate
 ) else (
     set rotate=--no-rotate
 )
 
 set /p "add_crop_lines=Add crop lines to the photo sheet (yes/no, default is yes): "
-if /i "!add_crop_lines!"=="no" || /i "!add_crop_lines!"=="n" (
+if /i "!add_crop_lines!"=="n" set "add_crop_lines=no"
+if /i "!add_crop_lines!"=="no" (
     set add_crop_lines=--no-add-crop-lines
 ) else (
     set add_crop_lines=--add-crop-lines
@@ -209,7 +222,7 @@ if exist "%INPUT_PATH%\" (
         set "OUTPUT_PATH=%%~dpnf_output%%~xf"
 
         REM Execute Python script to process the image
-        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
+        start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "%%~ff" -b !rgb_list! -s "%%~dpnf_output%%~xf" -p "!photo_type!" --photo-sheet-size "!photo_sheet_size!" !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
     )
 ) else (
     REM If it's a file, process the file directly
@@ -218,7 +231,7 @@ if exist "%INPUT_PATH%\" (
     set OUTPUT_PATH=%INPUT_DIR%%~n1_output%~x1
 
     REM Due to setlocal enabledelayedexpansion, use !variable_name! to reference variables
-    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p !photo_type! --photo-sheet-size !photo_sheet_size! !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
+    start "" cmd /k "%PYTHON_EXE% %SCRIPT_PATH% "!INPUT_PATH!" -b !rgb_list! -s "!OUTPUT_PATH!" -p "!photo_type!" --photo-sheet-size "!photo_sheet_size!" !compress! !save_corrected! !change_background! !save_background! -sr !sheet_rows! -sc !sheet_cols! !rotate! !resize! !save_resized! !layout_only! !add_crop_lines! !target_size! !size_range! !use_csv_size! !yolov8_param! !yunet_param! !rmbg_param! !layout_position! !photos_spacing! !face_height_ratio! !top_margin_ratio! !skin_retouch! !retouch_degree! !whitening_degree! !skin_retouch_model_dir! & pause"
 )
 
 pause

@@ -13,6 +13,16 @@ from functools import partial
 
 import cv2
 import numpy as np
+import huggingface_hub
+
+if not hasattr(huggingface_hub, 'HfFolder'):
+    class _HfFolderCompat:
+        @staticmethod
+        def get_token():
+            return huggingface_hub.get_token()
+
+    huggingface_hub.HfFolder = _HfFolderCompat
+
 import gradio as gr
 import pandas as pd
 from PIL import Image
