@@ -2,7 +2,7 @@
 
 <h1>LiYing</h1>
 
-简体中文 | [English](./README-EN.md)
+简体中文 | [English](./README-EN.md) | [日本語](./README-JA.md)
 
 [![GitHub release](https://img.shields.io/github/v/release/aoguai/LiYing?color=369eff&labelColor=black&logo=github&style=flat-square)](https://github.com/aoguai/LiYing/releases/latest)
 [![GitHub stars](https://img.shields.io/github/stars/aoguai/LiYing?color=ffcb47&labelColor=black&style=flat-square)](https://github.com/aoguai/LiYing/stargazers)
