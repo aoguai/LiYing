@@ -257,10 +257,13 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
             echo_message('background_saved', path=background_path)
 
     # Optional size processing
+    background_replaced = change_background and not layout_only
     if ratio_crop:
-        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio,
+                                      background_replaced=background_replaced)
     elif resize:
-        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio,
+                               background_replaced=background_replaced)
         if save_resized:
             resized_path = os.path.splitext(save_path)[0] + '_resized' + os.path.splitext(save_path)[1]
             processor.save_photos(resized_path, compress, **file_size_limits)
@@ -277,7 +280,7 @@ def cli(img_path, yolov8_model_path, yunet_model_path, rmbg_model_path, size_con
         except ValueError:
             if not ratio_crop:
                 raise
-            processor.resize_image(photo_type)
+            processor.resize_image(photo_type, background_replaced=background_replaced)
             photo_sheet_cv = generator.generate_photo_sheet(processor.photo.image, sheet_rows, sheet_cols, rotate, add_crop_lines, layout_position, photos_spacing)
         sheet_path = os.path.splitext(save_path)[0] + '_sheet' + os.path.splitext(save_path)[1]
         generator.save_photo_sheet(photo_sheet_cv, sheet_path)

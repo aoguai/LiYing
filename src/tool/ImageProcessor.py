@@ -278,6 +278,17 @@ class ImageProcessor:
             # Update the PhotoEntity object's image and re-detect
             self.photo.image = cropped_image
             self.photo.detect()
+            if self.photo.face_bbox is None and transformed_face_bbox is not None:
+                # Re-detection can fail on a tightly cropped portrait; keeping the
+                # original detection keeps the face-anchored composition working.
+                fallback_x1 = max(float(transformed_face_bbox[0]) - x1, 0.0)
+                fallback_y1 = max(float(transformed_face_bbox[1]) - y1, 0.0)
+                fallback_x2 = min(float(transformed_face_bbox[2]) - x1, float(cropped_image.shape[1]))
+                fallback_y2 = min(float(transformed_face_bbox[3]) - y1, float(cropped_image.shape[0]))
+                if fallback_x2 > fallback_x1 and fallback_y2 > fallback_y1:
+                    self.photo.manually_set_face_data(
+                        np.array([fallback_x1, fallback_y1, fallback_x2, fallback_y2], dtype=float)
+                    )
             # Manually set the person bounding box to the full image range
             self.photo.person_bbox = [0, 0, cropped_image.shape[1], cropped_image.shape[0]]
             return self.photo
@@ -414,7 +425,61 @@ class ImageProcessor:
             raise ValueError("Calculated face crop is outside the image bounds")
         return x_start, x_start + crop_width, y_start, y_start + crop_height
 
-    def resize_image(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
+    @staticmethod
+    def _pad_image_top(image: np.ndarray, pad: int) -> np.ndarray:
+        """Extend the canvas upward so a requested top margin can always be honored."""
+        if pad <= 0:
+            return image
+        if image.ndim == 3 and image.shape[2] == 4:
+            # Transparent padding stays valid for the later background compositing.
+            return cv.copyMakeBorder(image, pad, 0, 0, 0, cv.BORDER_CONSTANT, value=(0, 0, 0, 0))
+        return cv.copyMakeBorder(image, pad, 0, 0, 0, cv.BORDER_REPLICATE)
+
+    @classmethod
+    def _crop_face_anchored_image(cls, image: np.ndarray, aspect_ratio: float, face_bbox,
+                                  face_height_ratio=0.30, top_margin_ratio=0.175,
+                                  background_replaced=False):
+        """
+        Crop to the target ratio with the face as the anchor.
+
+        When the caller actually replaced the background (``background_replaced``),
+        extra canvas is added on top if the source has no room above the head;
+        otherwise increasing ``top_margin_ratio`` would clamp at the image edge
+        and the photo would silently stop moving down.
+
+        Without background replacement (e.g. "layout only") the original crop
+        behavior is kept, so the result stays unchanged.
+        """
+        height, width = image.shape[:2]
+        coords = cls._get_photo_crop_coordinates(
+            (height, width), aspect_ratio, face_bbox, face_height_ratio, top_margin_ratio
+        )
+        if face_bbox is None or not background_replaced:
+            x1, x2, y1, y2 = coords
+            return image[y1:y2, x1:x2]
+
+        face_bbox = np.asarray(face_bbox, dtype=float)
+        pad_top = 0
+        for _ in range(8):
+            crop_height = coords[3] - coords[2]
+            face_top = float(face_bbox[1]) + pad_top
+            shortfall = crop_height * top_margin_ratio - face_top
+            extra_pad = int(np.ceil(shortfall))
+            if extra_pad <= 0:
+                break
+            pad_top += extra_pad
+            shifted_bbox = face_bbox + np.array([0.0, pad_top, 0.0, pad_top], dtype=float)
+            coords = cls._get_photo_crop_coordinates(
+                (height + pad_top, width), aspect_ratio, shifted_bbox,
+                face_height_ratio, top_margin_ratio
+            )
+
+        image = cls._pad_image_top(image, pad_top)
+        x1, x2, y1, y2 = coords
+        return image[y1:y2, x1:x2]
+
+    def resize_image(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175,
+                     background_replaced=False):
         # Get the target dimensions and other info
         photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
         width, height = photo_info['width'], photo_info['height']
@@ -431,14 +496,11 @@ class ImageProcessor:
             self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
             return self.photo.image
 
-        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
-            (orig_height, orig_width), width / height, self.photo.face_bbox,
-            face_height_ratio, top_margin_ratio
-        )
-        cropped_image = self.photo.image[y1:y2, x1:x2]
-        
         # Update the PhotoEntity object's image
-        self.photo.image = cropped_image
+        self.photo.image = self._crop_face_anchored_image(
+            self.photo.image, width / height, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio, background_replaced
+        )
         
         # Resize the image proportionally
         self.photo.image = cv.resize(self.photo.image, (width, height), interpolation=cv.INTER_AREA)
@@ -449,7 +511,8 @@ class ImageProcessor:
         
         return self.photo.image
 
-    def crop_to_photo_ratio(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175):
+    def crop_to_photo_ratio(self, photo_type, face_height_ratio=0.30, top_margin_ratio=0.175,
+                            background_replaced=False):
         photo_info = self.photo_requirements_detector.get_resize_image_list(photo_type)
         requirements = self.photo_requirements_detector.config_manager.get_size_config(photo_type)
 
@@ -461,13 +524,10 @@ class ImageProcessor:
         else:
             aspect_ratio = photo_info['width'] / photo_info['height']
 
-        orig_height, orig_width = self.photo.image.shape[:2]
-
-        x1, x2, y1, y2 = self._get_photo_crop_coordinates(
-            (orig_height, orig_width), aspect_ratio, self.photo.face_bbox,
-            face_height_ratio, top_margin_ratio
+        self.photo.image = self._crop_face_anchored_image(
+            self.photo.image, aspect_ratio, self.photo.face_bbox,
+            face_height_ratio, top_margin_ratio, background_replaced
         )
-        self.photo.image = self.photo.image[y1:y2, x1:x2]
         self.photo.print_size = photo_info['print_size']
         self.photo.resolution = photo_info['resolution']
 
