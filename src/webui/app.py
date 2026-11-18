@@ -234,9 +234,11 @@ def process_image(img_path, yolov8_path, yunet_path, rmbg_path, photo_requiremen
         corrected_image_alpha = processor.photo.image
 
     if ratio_crop:
-        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio)
+        processor.crop_to_photo_ratio(photo_type, face_height_ratio, top_margin_ratio,
+                                      background_replaced=change_background)
     elif resize:
-        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio)
+        processor.resize_image(photo_type, face_height_ratio, top_margin_ratio,
+                               background_replaced=change_background)
 
     corrected_image_alpha = processor.photo.image
     corrected_image_bgr = composite_bgra_on_rgb(corrected_image_alpha, rgb_list)
